@@ -1,186 +1,216 @@
 import flet as ft
 
 def main(page: ft.Page):
-    page.title = "CV Analyzer App"
     page.vertical_alignment = ft.MainAxisAlignment.START
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.padding = 20
-    page.bgcolor = "#FFFFFF"
+    page.bgcolor = "#14141E"
     
     # Keywords input
     keywords_field = ft.TextField(
-        value="React, Express, HTML",
-        width=800,
+        label="Keywords",
+        border_color="#4E4E6A",
         height=50,
         bgcolor="#E5E7EB",
-        border_radius=5,
-        content_padding=ft.padding.all(15)
+        border_radius=10,
+        content_padding=ft.padding.symmetric(horizontal=15),
+        text_style=ft.TextStyle(color="black"),
+        label_style=ft.TextStyle(color="#d3d3d3")
     )
-    
-    # Search algorithm slider
-    algorithm_slider = ft.Slider(
-        min=0,
-        max=1,
-        divisions=1,
-        value=0,
-        width=200,
-        active_color="#6B7280",
-        thumb_color="#374151"
+
+    algorithm_toggle = ft.CupertinoSwitch(
+        value=True,
+        active_color="#FF8A65",
+        inactive_track_color="#FF8A65",
+        on_change=lambda e: print("Switch changed"),
     )
     
     # Top matches dropdown
-    matches_dropdown = ft.Dropdown(
-        value="3",
-        width=100,
-        options=[
-            ft.dropdown.Option("1"),
-            ft.dropdown.Option("2"),
-            ft.dropdown.Option("3"),
-            ft.dropdown.Option("5"),
-            ft.dropdown.Option("10"),
-        ],
-        bgcolor="#E5E7EB",
-        border_radius=5
+    top_matches_input = ft.TextField(
+        value="1",
+        border_color="#4E4E6A",
+        border_radius=10,
+        width=70,
+        height=50,
+        text_align=ft.TextAlign.CENTER
+    )
+
+    def change_top_matches(value):
+        current_value = int(top_matches_input.value)
+        new_value = max(1, current_value + value) 
+        top_matches_input.value = str(new_value)
+        page.update()
+
+    # Tombol Search
+    search_button = ft.Container(
+        content=ft.Text("Search", color="white", weight=ft.FontWeight.BOLD),
+        width=300, 
+        height=50,
+        bgcolor="#FF8A65",
+        border_radius=10,
+        alignment=ft.alignment.center,
+        on_click=lambda e: search_click(e) 
     )
     
     # Results container
-    results_container = ft.Column(spacing=15)
+    results_grid = ft.GridView(
+        expand=1,
+        runs_count=3,  
+        child_aspect_ratio=1, 
+        spacing=20,
+        run_spacing=20,
+    )
     
     # Search function
     def search_click(e):
-        # Clear previous results
-        results_container.controls.clear()
+        results_grid.controls.clear()
         
-        # Add results header
-        results_container.controls.append(
-            ft.Column([
-                ft.Text("Results", size=32, weight=ft.FontWeight.BOLD, color="#000000"),
-                ft.Text("100 CVs scanned in 100ms", size=14, color="#6B7280")
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5)
-        )
-        
-        # Sample results data
         candidates = [
-            {"name": "Farhan", "matches": 4, "keywords": ["React: 1 occurrence", "Express: 2 occurrences", "HTML: 1 occurrence"]},
-            {"name": "Aland", "matches": 1, "keywords": ["React: 1 occurrence"]},
-            {"name": "Ariel", "matches": 1, "keywords": ["Express: 1 occurrence"]}
+            {"name": "Adha", "matches": 4, "keywords": ["React: 4 occurences", "C++: 7 occurences", "Java: 1 occurence"]},
+            {"name": "Budi", "matches": 3, "keywords": ["Python: 5 occurences", "SQL: 2 occurences"]},
+            {"name": "Caca", "matches": 2, "keywords": ["HTML: 3 occurences", "CSS: 1 occurence"]},
+            {"name": "Deni", "matches": 2, "keywords": ["Flet: 8 occurences", "Python: 1 occurence"]},
+            {"name": "Euis", "matches": 1, "keywords": ["JavaScript: 2 occurences"]},
         ]
         
-        # Create result cards
-        result_cards = []
         for candidate in candidates:
-            # Create keyword list
-            keyword_controls = []
-            for i, keyword in enumerate(candidate["keywords"], 1):
-                keyword_controls.append(
-                    ft.Text(f"{i}. {keyword}", size=12, color="#1F2937")
-                )
+            keyword_controls = [
+                ft.Text(f"{i}. {kw}", color="#444444", size=12) 
+                for i, kw in enumerate(candidate["keywords"], 1)
+            ]
             
-            # Create buttons
-            buttons_row = ft.Row([
-                ft.ElevatedButton(
-                    "Summary",
-                    bgcolor="#9CA3AF",
-                    color="#000000",
-                    style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=5))
-                ),
-                ft.ElevatedButton(
-                    "View CV",
-                    bgcolor="#6B7280",
-                    color="#FFFFFF",
-                    style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=5))
-                )
-            ], spacing=10)
-            
-            # Create result card
             card = ft.Container(
                 content=ft.Column([
                     ft.Row([
-                        ft.Text(candidate["name"], size=18, weight=ft.FontWeight.BOLD, color="#000000"),
-                        ft.Text(f"{candidate['matches']} match{'es' if candidate['matches'] > 1 else ''}", 
-                               size=12, color="#6B7280")
+                        ft.Text(candidate["name"], weight=ft.FontWeight.BOLD, color="black", size=18),
+                        ft.Container(
+                            content=ft.Text(f"{candidate['matches']} Matched", color="#1e1e2f", size=10, weight=ft.FontWeight.BOLD),
+                            bgcolor="#B7E5B4",
+                            padding=ft.padding.symmetric(horizontal=8, vertical=4),
+                            border_radius=5
+                        )
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                    ft.Text("Matched keywords:", size=12, weight=ft.FontWeight.BOLD, color="#000000"),
+                    ft.Text("Matched keywords:", color="#444444", size=12, weight=ft.FontWeight.BOLD),
                     ft.Column(keyword_controls, spacing=2),
                     ft.Container(height=10),
-                    buttons_row
+                    ft.Row([
+                        ft.ElevatedButton("Summary", bgcolor="#4E4E6A", color="white"),
+                        ft.ElevatedButton("View CV", bgcolor="#4E4E6A", color="white")
+                    ], spacing=10, alignment=ft.MainAxisAlignment.END)
                 ], spacing=8),
-                bgcolor="#E5E7EB",
-                border_radius=8,
-                padding=15,
-                width=280
+                bgcolor="#ffffff",
+                border_radius=10,
+                padding=20,
             )
-            result_cards.append(card)
-        
-        # Add result cards in a row
-        results_container.controls.append(
-            ft.Row(
-                result_cards,
-                alignment=ft.MainAxisAlignment.CENTER,
-                spacing=20,
-                scroll=ft.ScrollMode.AUTO
-            )
-        )
-        
+            results_grid.controls.append(card)
         page.update()
-    
-    # Search button
-    search_button = ft.ElevatedButton(
-        "Search",
-        on_click=search_click,
-        width=800,
-        height=50,
-        bgcolor="#6B7280",
-        color="#FFFFFF",
-        style=ft.ButtonStyle(
-            shape=ft.RoundedRectangleBorder(radius=25)
-        )
+
+    # Left Column
+    left_column = ft.Container(
+        col = 5,
+        content=ft.Column([
+            # Input Section 
+            ft.Container(
+                content=ft.Column([
+                    ft.Text("10Internship0Job App", size=20, weight=ft.FontWeight.BOLD, color="white"),
+                    keywords_field,
+                    ft.Row([
+                        ft.Text("KMP", color="white"),
+                        algorithm_toggle,
+                        ft.Text("BM", color="white"),
+                        ft.Container(width=20),
+                        ft.IconButton(ft.Icons.REMOVE, icon_color="white", on_click=lambda e: change_top_matches(-1)),
+                        top_matches_input,
+                        ft.IconButton(ft.Icons.ADD, icon_color="white", on_click=lambda e: change_top_matches(1)),
+                    ], alignment=ft.MainAxisAlignment.START, spacing=10),
+                    search_button,
+                ], spacing=20),
+                bgcolor="#2A2A3D",
+                border_radius=10,
+                padding=25
+            ),
+            
+            # Statistics Section
+            ft.Container(
+                content=ft.Column([
+                    # Total Dataset
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Icon(name=ft.Icons.FOLDER_OPEN, color="white"),
+                            ft.Text("Total Dataset", color="white", size=12),
+                            ft.Text("666 CV", color="white", size=24, weight=ft.FontWeight.BOLD)
+                        ], spacing=5, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                        bgcolor="#9497AE",
+                        border_radius=10,
+                        padding=20,
+                        alignment=ft.alignment.center
+                    ),
+                    # Scan Times
+                    ft.Row([
+                        ft.Container(
+                            content=ft.Row([
+                                ft.Icon(name=ft.Icons.SPEED, color="#FF8A65"),
+                                ft.Column([
+                                    ft.Text("Exact Match", color="white", size=12),
+                                    ft.Text("99 ms", color="white", weight=ft.FontWeight.BOLD)
+                                ])
+                            ]),
+                            expand=True, bgcolor="#9497AE", border_radius=10, padding=15
+                        ),
+                        ft.Container(
+                            content=ft.Row([
+                                ft.Icon(name=ft.Icons.RULE, color="#FF8A65"),
+                                ft.Column([
+                                    ft.Text("Fuzzy Match", color="white", size=12),
+                                    ft.Text("105 ms", color="white", weight=ft.FontWeight.BOLD)
+                                ])
+                            ]),
+                            expand=True, bgcolor="#9497AE", border_radius=10, padding=15
+                        ),
+                    ], spacing=20),
+                    # Tips
+                    ft.Container(
+                        content=ft.Row([
+                            ft.Icon(name=ft.Icons.LIGHTBULB_OUTLINE, color="white"),
+                            ft.Text("Tips", color="white")
+                        ]),
+                        expand=True, bgcolor="#9497AE", border_radius=10, padding=15
+                    )
+                ], spacing=20),
+                bgcolor="#2A2A3D",
+                border_radius=10,
+                padding=25
+            )
+        ], spacing=25),
+        width=400,
+        padding=ft.padding.only(right=25)
+    )
+
+    # Right Column
+    right_column = ft.Container(
+        col=7,
+        content=ft.Column(
+            [
+                ft.Text("Result", size=24, weight=ft.FontWeight.BOLD, color="white"),
+                results_grid
+            ],
+            scroll=ft.ScrollMode.ADAPTIVE, 
+            expand=True 
+        ),
+        bgcolor="#2A2A3D",
+        border_radius=10,
+        padding=25
     )
     
     # Main layout
     page.add(
-        ft.Column([
-            # Title
-            ft.Container(
-                ft.Text("CV Analyzer App", size=32, weight=ft.FontWeight.BOLD, color="#000000"),
-                margin=ft.margin.only(bottom=30)
-            ),
-            
-            # Keywords section
-            ft.Column([
-                ft.Text("Keywords :", size=16, weight=ft.FontWeight.BOLD, color="#000000"),
-                keywords_field
-            ], spacing=10),
-            
-            # Search algorithm section
-            ft.Container(
-                ft.Column([
-                    ft.Text("Search Algorithm:", size=16, weight=ft.FontWeight.BOLD, color="#000000"),
-                    ft.Row([
-                        ft.Text("KMP", size=14, color="#000000"),
-                        algorithm_slider,
-                        ft.Text("BM", size=14, color="#000000")
-                    ], alignment=ft.MainAxisAlignment.CENTER, spacing=10)
-                ], spacing=10),
-                margin=ft.margin.only(top=20, bottom=20)
-            ),
-            
-            # Top matches section
-            ft.Column([
-                ft.Text("Top Matches:", size=16, weight=ft.FontWeight.BOLD, color="#000000"),
-                matches_dropdown
-            ], spacing=10),
-            
-            # Search button
-            ft.Container(
-                search_button,
-                margin=ft.margin.only(top=30, bottom=30)
-            ),
-            
-            # Results section
-            results_container
-            
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0)
+        ft.ResponsiveRow(
+            [
+                left_column,
+                right_column
+            ],
+            vertical_alignment=ft.CrossAxisAlignment.START
+        )
     )
 
 ft.app(main)
