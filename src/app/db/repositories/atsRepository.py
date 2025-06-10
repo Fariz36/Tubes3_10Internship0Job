@@ -1,4 +1,3 @@
-# db/repository.py
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from typing import List, Dict, Optional, Tuple
@@ -13,7 +12,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class BaseRepository:
-    """Base repository with common database operations"""
     
     def __init__(self):
         self.config = DatabaseConfig()
@@ -33,10 +31,8 @@ class BaseRepository:
             session.close()
 
 class ApplicantRepository(BaseRepository):
-    """Repository for ApplicantProfile operations"""
     
     def create_applicant(self, applicant_data: Dict) -> Optional[ApplicantProfile]:
-        """Create a new applicant profile"""
         try:
             with self.get_session() as session:
                 applicant = ApplicantProfile(
@@ -56,7 +52,6 @@ class ApplicantRepository(BaseRepository):
             return None
     
     def get_applicant_by_id(self, applicant_id: int) -> Optional[ApplicantProfile]:
-        """Get applicant by ID"""
         try:
             with self.get_session() as session:
                 applicant = session.query(ApplicantProfile).filter(
@@ -68,7 +63,6 @@ class ApplicantRepository(BaseRepository):
             return None
     
     def get_applicant_by_email(self, email: str) -> Optional[ApplicantProfile]:
-        """Get applicant by email"""
         try:
             with self.get_session() as session:
                 applicant = session.query(ApplicantProfile).filter(
@@ -80,7 +74,6 @@ class ApplicantRepository(BaseRepository):
             return None
     
     def get_all_applicants(self, limit: Optional[int] = None, offset: Optional[int] = None) -> List[ApplicantProfile]:
-        """Get all applicants with optional pagination"""
         try:
             with self.get_session() as session:
                 query = session.query(ApplicantProfile).order_by(ApplicantProfile.created_at.desc())
@@ -97,7 +90,6 @@ class ApplicantRepository(BaseRepository):
             return []
     
     def update_applicant(self, applicant_id: int, update_data: Dict) -> Optional[ApplicantProfile]:
-        """Update applicant profile"""
         try:
             with self.get_session() as session:
                 applicant = session.query(ApplicantProfile).filter(
@@ -108,7 +100,6 @@ class ApplicantRepository(BaseRepository):
                     logger.warning(f"Applicant with ID {applicant_id} not found")
                     return None
                 
-                # Update fields if provided
                 for field, value in update_data.items():
                     if hasattr(applicant, field) and value is not None:
                         setattr(applicant, field, value)
@@ -122,7 +113,6 @@ class ApplicantRepository(BaseRepository):
             return None
     
     def delete_applicant(self, applicant_id: int) -> bool:
-        """Delete applicant profile (cascade deletes applications)"""
         try:
             with self.get_session() as session:
                 applicant = session.query(ApplicantProfile).filter(
@@ -142,7 +132,6 @@ class ApplicantRepository(BaseRepository):
             return False
     
     def search_applicants_by_name(self, name_pattern: str) -> List[ApplicantProfile]:
-        """Search applicants by name pattern"""
         try:
             with self.get_session() as session:
                 applicants = session.query(ApplicantProfile).filter(
@@ -154,7 +143,6 @@ class ApplicantRepository(BaseRepository):
             return []
     
     def get_applicants_count(self) -> int:
-        """Get total count of applicants"""
         try:
             with self.get_session() as session:
                 count = session.query(ApplicantProfile).count()
@@ -164,10 +152,8 @@ class ApplicantRepository(BaseRepository):
             return 0
 
 class ApplicationRepository(BaseRepository):
-    """Repository for ApplicationDetail operations"""
     
     def create_application(self, application_data: Dict) -> Optional[ApplicationDetail]:
-        """Create a new application"""
         try:
             with self.get_session() as session:
                 application = ApplicationDetail(
@@ -188,7 +174,6 @@ class ApplicationRepository(BaseRepository):
             return None
     
     def get_application_by_id(self, application_id: int) -> Optional[ApplicationDetail]:
-        """Get application by ID"""
         try:
             with self.get_session() as session:
                 application = session.query(ApplicationDetail).filter(
@@ -200,7 +185,6 @@ class ApplicationRepository(BaseRepository):
             return None
     
     def get_applications_by_applicant(self, applicant_id: int) -> List[ApplicationDetail]:
-        """Get all applications for a specific applicant"""
         try:
             with self.get_session() as session:
                 applications = session.query(ApplicationDetail).filter(
@@ -212,7 +196,6 @@ class ApplicationRepository(BaseRepository):
             return []
     
     def get_all_applications(self, limit: Optional[int] = None, offset: Optional[int] = None) -> List[ApplicationDetail]:
-        """Get all applications with optional pagination"""
         try:
             with self.get_session() as session:
                 query = session.query(ApplicationDetail).order_by(ApplicationDetail.application_date.desc())
@@ -229,7 +212,6 @@ class ApplicationRepository(BaseRepository):
             return []
     
     def update_application(self, application_id: int, update_data: Dict) -> Optional[ApplicationDetail]:
-        """Update application details"""
         try:
             with self.get_session() as session:
                 application = session.query(ApplicationDetail).filter(
@@ -254,7 +236,6 @@ class ApplicationRepository(BaseRepository):
             return None
     
     def delete_application(self, application_id: int) -> bool:
-        """Delete application"""
         try:
             with self.get_session() as session:
                 application = session.query(ApplicationDetail).filter(
@@ -274,7 +255,6 @@ class ApplicationRepository(BaseRepository):
             return False
     
     def get_applications_by_status(self, status: str) -> List[ApplicationDetail]:
-        """Get applications by status"""
         try:
             with self.get_session() as session:
                 applications = session.query(ApplicationDetail).filter(
@@ -286,7 +266,6 @@ class ApplicationRepository(BaseRepository):
             return []
     
     def get_applications_by_position(self, position_pattern: str) -> List[ApplicationDetail]:
-        """Search applications by position pattern"""
         try:
             with self.get_session() as session:
                 applications = session.query(ApplicationDetail).filter(
@@ -298,7 +277,6 @@ class ApplicationRepository(BaseRepository):
             return []
     
     def get_applications_by_company(self, company_pattern: str) -> List[ApplicationDetail]:
-        """Search applications by company pattern"""
         try:
             with self.get_session() as session:
                 applications = session.query(ApplicationDetail).filter(
@@ -310,11 +288,9 @@ class ApplicationRepository(BaseRepository):
             return []
     
     def update_application_status(self, application_id: int, status: str) -> Optional[ApplicationDetail]:
-        """Update application status"""
         return self.update_application(application_id, {'status': status})
     
     def get_applications_count(self) -> int:
-        """Get total count of applications"""
         try:
             with self.get_session() as session:
                 count = session.query(ApplicationDetail).count()
