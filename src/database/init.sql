@@ -1,4 +1,13 @@
 CREATE DATABASE IF NOT EXISTS ats_db;
+
+CREATE USER IF NOT EXISTS 'asepjajang'@'%' IDENTIFIED BY 'asepjajang123';
+CREATE USER IF NOT EXISTS 'asepjajang'@'localhost' IDENTIFIED BY 'asepjajang123';
+
+GRANT ALL PRIVILEGES ON ats_db.* TO 'asepjajang'@'%';
+GRANT ALL PRIVILEGES ON ats_db.* TO 'asepjajang'@'localhost';
+
+FLUSH PRIVILEGES;
+
 USE ats_db;
 
 CREATE TABLE IF NOT EXISTS ApplicantProfile (
@@ -32,6 +41,7 @@ CREATE TABLE IF NOT EXISTS ApplicationDetail (
     INDEX idx_status (status)
 );
 
+-- Create additional indexes
 CREATE INDEX idx_email ON ApplicantProfile(email);
 CREATE INDEX idx_full_name ON ApplicantProfile(full_name);
 CREATE INDEX idx_cv_path ON ApplicationDetail(cv_path);

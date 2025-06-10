@@ -1,6 +1,12 @@
 import flet as ft
+from dotenv import load_dotenv  # Add this import
+import os
 from db.controller.data_service import DataService
 from ui.components import create_candidate_card
+from db.models import init_database
+
+# Load environment variables from .env file
+load_dotenv()
 
 # APPLICATION CLASS
 class CVApp:
@@ -9,6 +15,15 @@ class CVApp:
         self.data_service = DataService()
         self.keywords_field = None
         self.algorithm_toggle = None
+        
+        # Set environment variables explicitly (optional, since .env is loaded)
+        os.environ['MYSQL_HOST'] = os.getenv('MYSQL_HOST', 'localhost')
+        os.environ['MYSQL_PORT'] = os.getenv('MYSQL_PORT', '3306')
+        os.environ['MYSQL_DATABASE'] = os.getenv('MYSQL_DATABASE', 'ats_db')
+        os.environ['MYSQL_USER'] = os.getenv('MYSQL_USER', 'asepjajang')
+        os.environ['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD', 'asepjajang123')
+        
+        init_database() 
 
         # Modal controls
         self.modal_candidate_name = ft.Text(weight=ft.FontWeight.BOLD, color="white", size=22)
