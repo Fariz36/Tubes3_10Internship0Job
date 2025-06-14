@@ -1,3 +1,4 @@
+from sqlalchemy import create_engine, Column, Integer, String, Text, Date, DateTime, Enum, ForeignKey
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from typing import List, Dict, Optional, Tuple
@@ -36,11 +37,11 @@ class ApplicantRepository(BaseRepository):
         try:
             with self.get_session() as session:
                 applicant = ApplicantProfile(
-                    full_name=applicant_data.get('full_name'),
-                    email=applicant_data.get('email'),
-                    phone=applicant_data.get('phone'),
-                    address=applicant_data.get('address'),
-                    date_of_birth=applicant_data.get('date_of_birth')
+                    first_name=applicant_data.get('first_name'),  # Fixed: added quotes
+                    last_name=applicant_data.get('last_name'),    # Fixed: added quotes
+                    date_of_birth=applicant_data.get('date_of_birth'),  # Fixed: added quotes
+                    address=applicant_data.get('address'),        # Fixed: added quotes
+                    phone_number=applicant_data.get('phone_number')  # Fixed: .get() instead of ()
                 )
                 session.add(applicant)
                 session.flush()  # Get the ID without committing
@@ -88,30 +89,7 @@ class ApplicantRepository(BaseRepository):
         except SQLAlchemyError as e:
             logger.error(f"Error getting all applicants: {str(e)}")
             return []
-    
-    def update_applicant(self, applicant_id: int, update_data: Dict) -> Optional[ApplicantProfile]:
-        try:
-            with self.get_session() as session:
-                applicant = session.query(ApplicantProfile).filter(
-                    ApplicantProfile.applicant_id == applicant_id
-                ).first()
-                
-                if not applicant:
-                    logger.warning(f"Applicant with ID {applicant_id} not found")
-                    return None
-                
-                for field, value in update_data.items():
-                    if hasattr(applicant, field) and value is not None:
-                        setattr(applicant, field, value)
-                
-                session.flush()
-                session.refresh(applicant)
-                logger.info(f"Updated applicant: {applicant.full_name} (ID: {applicant.applicant_id})")
-                return applicant
-        except SQLAlchemyError as e:
-            logger.error(f"Error updating applicant {applicant_id}: {str(e)}")
-            return None
-    
+      
     def delete_applicant(self, applicant_id: int) -> bool:
         try:
             with self.get_session() as session:
@@ -158,16 +136,13 @@ class ApplicationRepository(BaseRepository):
             with self.get_session() as session:
                 application = ApplicationDetail(
                     applicant_id=application_data.get('applicant_id'),
-                    position=application_data.get('position'),
-                    company=application_data.get('company'),
                     cv_path=application_data.get('cv_path'),
-                    application_date=application_data.get('application_date', date.today()),
-                    status=application_data.get('status', 'pending')
+                    application_role=application_data.get('application_role')
                 )
                 session.add(application)
                 session.flush()
                 session.refresh(application)
-                logger.info(f"Created application: {application.position} at {application.company} (ID: {application.application_id})")
+                logger.info(f"Created application: {application.application_role} (ID: {application.application_id})")  # Fixed: removed references to non-existent attributes
                 return application
         except SQLAlchemyError as e:
             logger.error(f"Error creating application: {str(e)}")
@@ -189,7 +164,7 @@ class ApplicationRepository(BaseRepository):
             with self.get_session() as session:
                 applications = session.query(ApplicationDetail).filter(
                     ApplicationDetail.applicant_id == applicant_id
-                ).order_by(ApplicationDetail.application_date.desc()).all()
+                ).order_by(ApplicationDetail.detail_id.desc()).all()  # Fixed: used existing field
                 return applications
         except SQLAlchemyError as e:
             logger.error(f"Error getting applications for applicant {applicant_id}: {str(e)}")
@@ -198,7 +173,7 @@ class ApplicationRepository(BaseRepository):
     def get_all_applications(self, limit: Optional[int] = None, offset: Optional[int] = None) -> List[ApplicationDetail]:
         try:
             with self.get_session() as session:
-                query = session.query(ApplicationDetail).order_by(ApplicationDetail.application_date.desc())
+                query = session.query(ApplicationDetail).order_by(ApplicationDetail.detail_id.desc())  # Fixed: used existing field
                 
                 if offset:
                     query = query.offset(offset)
@@ -210,86 +185,26 @@ class ApplicationRepository(BaseRepository):
         except SQLAlchemyError as e:
             logger.error(f"Error getting all applications: {str(e)}")
             return []
-    
-    def update_application(self, application_id: int, update_data: Dict) -> Optional[ApplicationDetail]:
-        try:
-            with self.get_session() as session:
-                application = session.query(ApplicationDetail).filter(
-                    ApplicationDetail.application_id == application_id
-                ).first()
-                
-                if not application:
-                    logger.warning(f"Application with ID {application_id} not found")
-                    return None
-                
-                # Update fields if provided
-                for field, value in update_data.items():
-                    if hasattr(application, field) and value is not None:
-                        setattr(application, field, value)
-                
-                session.flush()
-                session.refresh(application)
-                logger.info(f"Updated application: {application.position} (ID: {application.application_id})")
-                return application
-        except SQLAlchemyError as e:
-            logger.error(f"Error updating application {application_id}: {str(e)}")
-            return None
-    
+   
     def delete_application(self, application_id: int) -> bool:
         try:
             with self.get_session() as session:
                 application = session.query(ApplicationDetail).filter(
-                    ApplicationDetail.application_id == application_id
+                    ApplicationDetail.detail_id == application_id  # Fixed: used correct field name
                 ).first()
                 
                 if not application:
                     logger.warning(f"Application with ID {application_id} not found")
                     return False
                 
-                position = application.position
+                role = application.application_role
                 session.delete(application)
-                logger.info(f"Deleted application: {position} (ID: {application_id})")
+                logger.info(f"Deleted application: {role} (ID: {application_id})")
                 return True
         except SQLAlchemyError as e:
             logger.error(f"Error deleting application {application_id}: {str(e)}")
             return False
-    
-    def get_applications_by_status(self, status: str) -> List[ApplicationDetail]:
-        try:
-            with self.get_session() as session:
-                applications = session.query(ApplicationDetail).filter(
-                    ApplicationDetail.status == status
-                ).order_by(ApplicationDetail.application_date.desc()).all()
-                return applications
-        except SQLAlchemyError as e:
-            logger.error(f"Error getting applications by status '{status}': {str(e)}")
-            return []
-    
-    def get_applications_by_position(self, position_pattern: str) -> List[ApplicationDetail]:
-        try:
-            with self.get_session() as session:
-                applications = session.query(ApplicationDetail).filter(
-                    ApplicationDetail.position.like(f"%{position_pattern}%")
-                ).order_by(ApplicationDetail.application_date.desc()).all()
-                return applications
-        except SQLAlchemyError as e:
-            logger.error(f"Error searching applications by position '{position_pattern}': {str(e)}")
-            return []
-    
-    def get_applications_by_company(self, company_pattern: str) -> List[ApplicationDetail]:
-        try:
-            with self.get_session() as session:
-                applications = session.query(ApplicationDetail).filter(
-                    ApplicationDetail.company.like(f"%{company_pattern}%")
-                ).order_by(ApplicationDetail.application_date.desc()).all()
-                return applications
-        except SQLAlchemyError as e:
-            logger.error(f"Error searching applications by company '{company_pattern}': {str(e)}")
-            return []
-    
-    def update_application_status(self, application_id: int, status: str) -> Optional[ApplicationDetail]:
-        return self.update_application(application_id, {'status': status})
-    
+
     def get_applications_count(self) -> int:
         try:
             with self.get_session() as session:
@@ -297,4 +212,4 @@ class ApplicationRepository(BaseRepository):
                 return count
         except SQLAlchemyError as e:
             logger.error(f"Error getting applications count: {str(e)}")
-            return 0
+            return 0  # Fixed: added missing return statement

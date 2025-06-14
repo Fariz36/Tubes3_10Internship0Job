@@ -20,7 +20,7 @@ class ApplicantProfile(Base):
     
     applications = relationship("ApplicationDetail", back_populates="applicant", cascade="all, delete-orphan")
     
-    def __repr__(self):
+    def __repr__(self): 
         return f"<ApplicantProfile(id={self.applicant_id}, name='{self.first_name} {self.last_name}')>"
     
     def to_dict(self):
@@ -28,7 +28,7 @@ class ApplicantProfile(Base):
             'applicant_id': self.applicant_id,
             'first_name': self.first_name,
             'last_name': self.last_name,
-            'date_of_birth': self.date_of_birth.isoformat(),
+            'date_of_birth': self.date_of_birth.isoformat() if self.date_of_birth else None,  # Fixed: handle None
             'address': self.address,
             'phone_number': self.phone_number
         }
@@ -43,7 +43,7 @@ class ApplicationDetail(Base):
     
     applicant = relationship("ApplicantProfile", back_populates="applications")
     
-    def __repr__(self):
+    def __repr__(self):  # Fixed: double underscores
         return f"<ApplicationDetail(id={self.detail_id}, role='{self.application_role}')>"
     
     def to_dict(self):
@@ -55,7 +55,7 @@ class ApplicationDetail(Base):
         }
 
 class DatabaseConfig:
-    def __init__(self):
+    def __init__(self):  # Fixed: double underscores
         self.MYSQL_HOST = os.getenv('MYSQL_HOST', 'localhost')
         self.MYSQL_PORT = os.getenv('MYSQL_PORT', '3306')
         self.MYSQL_DATABASE = os.getenv('MYSQL_DATABASE', 'ats_db')

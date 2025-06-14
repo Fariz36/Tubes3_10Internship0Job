@@ -16,13 +16,6 @@ class CVApp:
         self.keywords_field = None
         self.algorithm_toggle = None
         
-        # Set environment variables explicitly (optional, since .env is loaded)
-        os.environ['MYSQL_HOST'] = os.getenv('MYSQL_HOST', 'localhost')
-        os.environ['MYSQL_PORT'] = os.getenv('MYSQL_PORT', '3306')
-        os.environ['MYSQL_DATABASE'] = os.getenv('MYSQL_DATABASE', 'ats_db')
-        os.environ['MYSQL_USER'] = os.getenv('MYSQL_USER', 'asepjajang')
-        os.environ['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD', 'asepjajang123')
-        
         init_database() 
 
         # Modal controls
