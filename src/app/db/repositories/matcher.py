@@ -1,17 +1,21 @@
 import os
 import re
-from collections import Counter
+from collections import Counter, deque
 from typing import List, Dict, Tuple, Union
 import fitz
 
 class Matcher:
-    def __init__(self, cv_path: str, queries: List[str], method: str = 'exact'):
-        self.path = cv_path
-        self.queries = queries
+    def __init__(self, cv_paths: List[str], queries: List[str]):
+        self.cv_paths = cv_paths
+        self.texts = []
 
-        # Extract text in both cases
-        self.extracted_string_lower_case = self.extract_text(cv_path, case=0)
-        self.extracted_string_original = self.extract_text(cv_path, case=1)
+        self.queries = [query.lower() for query in queries]
+
+        for path in self.cv_paths:
+            if not os.path.exists(path):
+                raise FileNotFoundError(f"File not found: {path}")
+            self.texts.append(self.extract_text(path, 0))
+
 
     def extract_text(self, path: str, case: int) -> str:
         if not os.path.exists(path):
@@ -40,37 +44,61 @@ class Matcher:
             for page in doc:
                 text += page.get_text()
         return text
+    
+    def match(self, method: str, threshold: float = 0.8) -> Dict:
+        if not self.queries:
+            raise ValueError("Queries list is empty")
+    
+        result = []    
+        for text in self.texts:
+            if method == 'exact':
+                result.append(self._exact_match(text, self.queries))
+            elif method == 'KMP':
+                result.append(self._KMP_match(text, self.queries))
+            elif method == 'BM':
+                result.append(self._BM_match(text, self.queries))
+            elif method == 'fuzzy':
+                result.append(self._fuzzy_match(text, self.queries, threshold))
+            else:
+                raise ValueError(f"Unsupported matching method: {method}")
+        return result
 
-    def _exact_match(self, query: str) -> Dict:
-        query_lower = query.lower()
-        text_lower = self.extracted_string_lower_case
-        
+    def _exact_match_1_query(self, text:str, query: str) -> Dict:  
         matches = []
         count = 0
         start = 0
         
         while True:
-            pos = text_lower.find(query_lower, start)
+            pos = text.find(query, start)
             if pos == -1:
                 break
             matches.append(pos)
             count += 1
             start = pos + 1
         
+        return count
+    
+    def _exact_match(self, text:str, queries: List[str]) -> Dict:
+        results = []
+        for query in queries:
+            result = self._exact_match_1_query(text, query)
+            results.append(result)
+
+        total_queries = len(queries)
+
         return {
-            'query': query,
-            'count': count,
-            'positions': matches,
-            'found': count > 0,
-            'method': 'exact'
+            'total_queries': total_queries,
+            'query': queries,
+            'matched_queries': results,
+            'method_used': "exact",
         }
     
-    def _KMP_match_1_query(self, query: str) -> List:
+    def _KMP_match_1_query(self, text:str, query: str) -> List:
         """ KMP algorithm to find all occurrences of a query in the extracted text """
         """ source : https://cp-algorithms.com/string/prefix-function.html """
 
-        s =  query.lower() + "#" + self.extracted_string_lower_case
-        n = len(self.extracted_string_lower_case)
+        s = query + "#" + text
+        n = len(text)
         m = len(query)
         pi = [0] * n
         occ = []
@@ -90,10 +118,10 @@ class Matcher:
 
         return count
         
-    def _KMP_match(self, query: str) -> Dict:
+    def _KMP_match(self, text:str, query: List[str]) -> Dict:
         result = []
         for i in query:
-            result.append(self._KMP_match_1_query(i))
+            result.append(self._KMP_match_1_query(text, i))
 
         total_queries = len(self.queries)
 
@@ -102,15 +130,14 @@ class Matcher:
             'query': query,
             'matched_queries': result,
             'method_used': "KMP",
-            'cv_file': os.path.basename(self.path)
         }
     
-    def _BM_match_1_query(self, query: str) -> List:
+    def _BM_match_1_query(self, text:str, query: str) -> List:
         """ Boyer-Moore algorithm to find all occurrences of a query in the extracted text """
         """ source : https://cp-algorithms.com/string/boyer-moore.html """
 
-        s = query.lower()
-        t = self.extracted_string_lower_case
+        s = query
+        t = text
         m = len(s)
         n = len(t)
 
@@ -138,10 +165,10 @@ class Matcher:
 
         return count
 
-    def _BM_match(self, query: str) -> Dict:
+    def _BM_match(self, text:str, query: List[str]) -> Dict:
         result = []
         for i in query:
-            result.append(self._BM_match_1_query(i))
+            result.append(self._BM_match_1_query(text, i))
 
         total_queries = len(self.queries)
 
@@ -150,7 +177,6 @@ class Matcher:
             'query': query,
             'matched_queries': result,
             'method_used': "BM",
-            'cv_file': os.path.basename(self.path)
         }
 
     def _calculate_similarity(self, str1: str, str2: str) -> float:
@@ -184,35 +210,34 @@ class Matcher:
 
         return dp[len(s2)]
     
-    def _fuzzy_match_1_query(self, query: str, threshold:float) -> Dict:
+    def _fuzzy_match_1_query(self, text:str, query: str, threshold:float) -> Dict:
         assert threshold >= 0 and threshold <= 1, "Threshold must be between 0 and 1"
 
         """Fuzzy matching using simple similarity calculation"""
-        query_lower = query.lower()
-        text_lower = self.extracted_string_lower_case
+        text
         
         matches = []
         count = 0
         
-        for word in text_lower.split():
-            if (query_lower in word.lower()):
+        for word in text.split():
+            if (query in word.lower()):
                 matches.append(word)
                 count += 1
                 continue
 
-            if (len(query_lower)*2 < len(word) or len(word)*2 < len(query_lower)):
+            if (len(query)*2 < len(word) or len(word)*2 < len(query)):
                 continue
 
-            if self._calculate_similarity(word, query_lower) > threshold:
+            if self._calculate_similarity(word, query) > threshold:
                 matches.append(word)
                 count += 1
 
         return count
     
-    def _fuzzy_match(self, query: str, threshold: float = 0.8) -> Dict:
+    def _fuzzy_match(self, text:str, query: List[str], threshold: float = 0.8) -> Dict:
         result = []
         for i in query:
-            result.append(self._fuzzy_match_1_query(i, threshold))
+            result.append(self._fuzzy_match_1_query(text, i, threshold))
 
         total_queries = len(self.queries)
 
@@ -221,13 +246,11 @@ class Matcher:
             'query': query,
             'matched_queries': result,
             'method_used': "fuzzy",
-            'cv_file': os.path.basename(self.path)
         }
 
 if __name__ == "__main__":
-    file_path = "10554236.pdf"
-    matcher = Matcher(file_path, ["Financial"])
-    print(matcher.extracted_string_lower_case)
-    print(matcher._KMP_match(["other"]))
-
-    print(matcher._fuzzy_match(["respond", "Financal"], threshold=0.6))
+    matcher = Matcher(["10554236.pdf"], ["financel"])
+    print(matcher.match("KMP"))
+    print(matcher.match("BM"))
+    print(matcher.match("exact"))
+    print(matcher.match("fuzzy", threshold=0.6))
