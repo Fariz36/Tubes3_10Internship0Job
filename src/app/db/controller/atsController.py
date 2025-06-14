@@ -18,9 +18,7 @@ class ATSController:
         except Exception as e:
             logger.error(f"Error initializing database: {str(e)}")
             raise
-    
-    # ==================== APPLICANT OPERATIONS ====================
-    
+        
     def create_applicant(self, full_name: str, email: str, phone: str = None, 
                         address: str = None, date_of_birth: date = None) -> Dict:
         try:
@@ -32,10 +30,14 @@ class ATSController:
                     'data': None
                 }
             
+            name_parts = full_name.strip().split(' ', 1)
+            first_name = name_parts[0]
+            last_name = name_parts[1] if len(name_parts) > 1 else ''
+            
             applicant_data = {
-                'full_name': full_name,
-                'email': email,
-                'phone': phone,
+                'first_name': first_name,  # Fixed: use actual model fields
+                'last_name': last_name,    # Fixed: use actual model fields
+                'phone_number': phone,     # Fixed: match model field name
                 'address': address,
                 'date_of_birth': date_of_birth
             }
@@ -153,14 +155,11 @@ class ATSController:
                 'message': f'Error searching applicants: {str(e)}',
                 'data': None
             }
-    
-    # ==================== APPLICATION OPERATIONS ====================
-    
+        
     def create_application(self, applicant_id: int, position: str, company: str = None, 
                           cv_path: str = None, application_date: date = None, 
                           status: str = 'pending') -> Dict:
         try:
-            # Verify applicant exists
             applicant = self.applicant_repo.get_applicant_by_id(applicant_id)
             if not applicant:
                 return {
@@ -171,11 +170,8 @@ class ATSController:
             
             application_data = {
                 'applicant_id': applicant_id,
-                'position': position,
-                'company': company,
-                'cv_path': cv_path or f'/cvs/{applicant_id}_{position.replace(" ", "_")}.pdf',
-                'application_date': application_date or date.today(),
-                'status': status
+                'application_role': position,  # Fixed: match model field name
+                'cv_path': cv_path or f'/cvs/{applicant_id}_{position.replace(" ", "_")}.pdf'
             }
             
             application = self.application_repo.create_application(application_data)
@@ -268,57 +264,6 @@ class ATSController:
                 'data': None
             }
     
-    def get_applications_by_status(self, status: str) -> Dict:
-        try:
-            applications = self.application_repo.get_applications_by_status(status)
-            
-            return {
-                'success': True,
-                'message': f'Found {len(applications)} applications with status "{status}"',
-                'data': [application.to_dict() for application in applications]
-            }
-        except Exception as e:
-            logger.error(f"Error in get_applications_by_status: {str(e)}")
-            return {
-                'success': False,
-                'message': f'Error getting applications by status: {str(e)}',
-                'data': None
-            }
-    
-    def search_applications_by_position(self, position_pattern: str) -> Dict:
-        try:
-            applications = self.application_repo.get_applications_by_position(position_pattern)
-            
-            return {
-                'success': True,
-                'message': f'Found {len(applications)} applications matching position "{position_pattern}"',
-                'data': [application.to_dict() for application in applications]
-            }
-        except Exception as e:
-            logger.error(f"Error in search_applications_by_position: {str(e)}")
-            return {
-                'success': False,
-                'message': f'Error searching applications by position: {str(e)}',
-                'data': None
-            }
-    
-    def search_applications_by_company(self, company_pattern: str) -> Dict:
-        try:
-            applications = self.application_repo.get_applications_by_company(company_pattern)
-            
-            return {
-                'success': True,
-                'message': f'Found {len(applications)} applications matching company "{company_pattern}"',
-                'data': [application.to_dict() for application in applications]
-            }
-        except Exception as e:
-            logger.error(f"Error in search_applications_by_company: {str(e)}")
-            return {
-                'success': False,
-                'message': f'Error searching applications by company: {str(e)}',
-                'data': None
-            }
-    
     def get_application_count(self) -> Dict:
         try:
             count = self.application_repo.get_applications_count()
@@ -350,9 +295,7 @@ class ATSController:
                 'message': f'Error getting applicant count: {str(e)}',
                 'data': None
             }
-    
-    # ==================== COMBINED OPERATIONS ====================
-    
+        
     def get_applicant_with_applications(self, applicant_id: int) -> Dict:
         try:
             applicant = self.applicant_repo.get_applicant_by_id(applicant_id)
@@ -408,20 +351,11 @@ class ATSController:
                 'message': f'Error getting application with applicant: {str(e)}',
                 'data': None
             }
-    
-    # ==================== STATISTICS OPERATIONS ====================
-    
+        
     def get_dashboard_stats(self) -> Dict:
         try:
             total_applicants = self.applicant_repo.get_applicants_count()
             total_applications = self.application_repo.get_applications_count()
-            
-            # Get applications by status
-            status_counts = {}
-            statuses = ['pending', 'reviewed', 'shortlisted', 'rejected', 'hired']
-            for status in statuses:
-                applications = self.application_repo.get_applications_by_status(status)
-                status_counts[status] = len(applications)
             
             return {
                 'success': True,
@@ -429,7 +363,7 @@ class ATSController:
                 'data': {
                     'total_applicants': total_applicants,
                     'total_applications': total_applications,
-                    'applications_by_status': status_counts
+                    'note': 'Status breakdown requires additional repository methods'
                 }
             }
         except Exception as e:
@@ -447,7 +381,6 @@ class ATSController:
             if not month:
                 month = datetime.now().month
             
-            # Placeholder implementation
             return {
                 'success': True,
                 'message': f'Monthly statistics for {month}/{year}',
@@ -464,8 +397,6 @@ class ATSController:
                 'message': f'Error getting monthly statistics: {str(e)}',
                 'data': None
             }
-    
-    # ==================== UTILITY METHODS ====================
     
     def test_connection(self) -> Dict:
         try:
