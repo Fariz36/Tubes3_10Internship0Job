@@ -37,6 +37,20 @@ class Matcher:
         except Exception as e:
             print(f"Error extracting text: {e}")
             return ""
+        
+    def _get_important_information(self, text: str) -> Dict[str, Union[str, List[str]]]:
+        """Extract important information from the text"""
+        # TODO using REGEX
+        return {
+            "name": "",
+            "birth_date": "",
+            "address": "",
+            "email": "",
+            "phone": "",
+            "skills": [],
+            "education": [],
+            "experience": []
+        }
 
     def _extract_from_pdf(self, path: str) -> str:
         text = ""
@@ -57,6 +71,9 @@ class Matcher:
                 result.append(self._KMP_match(text, self.queries))
             elif method == 'BM':
                 result.append(self._BM_match(text, self.queries))
+            elif method == 'AC':
+                # TODO: Implement Aho-Corasick algorithm
+                print("Aho-Corasick algorithm is not implemented yet.")
             elif method == 'fuzzy':
                 result.append(self._fuzzy_match(text, self.queries, threshold))
             else:
