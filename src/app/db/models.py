@@ -12,60 +12,46 @@ class ApplicantProfile(Base):
     __tablename__ = 'ApplicantProfile'
     
     applicant_id = Column(Integer, primary_key=True, autoincrement=True)
-    full_name = Column(String(255), nullable=False)
-    email = Column(String(255), unique=True, nullable=False, index=True)
-    phone = Column(String(20))
-    address = Column(Text)
-    date_of_birth = Column(Date)
-    created_at = Column(DateTime, default=func.current_timestamp())
-    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+    first_name = Column(String(50), nullable=True)
+    last_name = Column(String(50), nullable=True)
+    date_of_birth = Column(Date, nullable=True)
+    address = Column(String(255), nullable=True)
+    phone_number = Column(String(20), nullable=True)
     
     applications = relationship("ApplicationDetail", back_populates="applicant", cascade="all, delete-orphan")
     
     def __repr__(self):
-        return f"<ApplicantProfile(id={self.applicant_id}, name='{self.full_name}', email='{self.email}')>"
+        return f"<ApplicantProfile(id={self.applicant_id}, name='{self.first_name} {self.last_name}')>"
     
     def to_dict(self):
         return {
             'applicant_id': self.applicant_id,
-            'full_name': self.full_name,
-            'email': self.email,
-            'phone': self.phone,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'date_of_birth': self.date_of_birth.isoformat(),
             'address': self.address,
-            'date_of_birth': self.date_of_birth.isoformat() if self.date_of_birth else None,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'phone_number': self.phone_number
         }
 
 class ApplicationDetail(Base):
     __tablename__ = 'ApplicationDetail'
     
-    application_id = Column(Integer, primary_key=True, autoincrement=True)
-    applicant_id = Column(Integer, ForeignKey('ApplicantProfile.applicant_id', ondelete='CASCADE', onupdate='CASCADE'), nullable=False, index=True)
-    position = Column(String(255), nullable=False, index=True)
-    company = Column(String(255), index=True)
-    cv_path = Column(String(500), nullable=False, index=True)
-    application_date = Column(Date, default=func.current_date())
-    status = Column(Enum('pending', 'reviewed', 'shortlisted', 'rejected', 'hired', name='application_status'), default='pending', index=True)
-    created_at = Column(DateTime, default=func.current_timestamp())
-    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+    detail_id = Column(Integer, primary_key=True, autoincrement=True)
+    applicant_id = Column(Integer, ForeignKey('ApplicantProfile.applicant_id'), nullable=False)
+    application_role = Column(String(100), nullable=True)
+    cv_path = Column(Text)
     
     applicant = relationship("ApplicantProfile", back_populates="applications")
     
     def __repr__(self):
-        return f"<ApplicationDetail(id={self.application_id}, position='{self.position}', status='{self.status}')>"
+        return f"<ApplicationDetail(id={self.detail_id}, role='{self.application_role}')>"
     
     def to_dict(self):
         return {
-            'application_id': self.application_id,
+            'detail_id': self.detail_id,
             'applicant_id': self.applicant_id,
-            'position': self.position,
-            'company': self.company,
-            'cv_path': self.cv_path,
-            'application_date': self.application_date.isoformat() if self.application_date else None,
-            'status': self.status,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'application_role': self.application_role,
+            'cv_path': self.cv_path
         }
 
 class DatabaseConfig:
