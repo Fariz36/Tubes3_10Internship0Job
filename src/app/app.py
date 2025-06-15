@@ -15,6 +15,7 @@ class CVApp:
         self.data_service = DataService()
         self.keywords_field = None
         self.algorithm_toggle = None
+        self.tips_modal_layer = None
         
         init_database() 
         test_connection()
@@ -47,7 +48,7 @@ class CVApp:
 
     # Modal layer
     def open_summary_modal(self, e, candidate_data):
-        print(f"Opening summary for: {candidate_data['name']}") # debug
+        # print(f"Opening summary for: {candidate_data['name']}") # debug
 
         # Profile
         self.modal_candidate_name.value = candidate_data['name']
@@ -92,6 +93,14 @@ class CVApp:
 
     def close_modal(self, e):
         self.modal_layer.visible = False
+        self.page.update()
+
+    def open_tips_modal(self, e):
+        self.tips_modal_layer.visible = True
+        self.page.update()
+
+    def close_tips_modal(self, e):
+        self.tips_modal_layer.visible = False
         self.page.update()
 
     # Search function
@@ -213,6 +222,111 @@ class CVApp:
                             ], scroll=ft.ScrollMode.ADAPTIVE, spacing=10),
                             expand=2, bgcolor="#1e1e2f", border_radius=10, padding=15
                         )
+                    ],
+                    spacing=15,
+                    horizontal_alignment=ft.CrossAxisAlignment.STRETCH
+                )
+            )
+        )
+    
+    def _build_tips_modal_layer(self):
+        def create_algorithm_card(name, description_list):
+            def _on_hover(e):
+                is_hovering = e.data == "true"
+                card_content.visible = not is_hovering
+                card_description.visible = is_hovering
+                card_container.bgcolor = "#3a3a50" if is_hovering else "#f1f1f1"
+                card_container.shadow = ft.BoxShadow(
+                    spread_radius=2, blur_radius=10, color=ft.Colors.with_opacity(0.3, "black"),
+                ) if is_hovering else None
+                # card_container.scale = ft.Transform.Scale(1.03) if is_hovering else ft.Transform.Scale(1)
+                card_container.update()
+
+            card_content = ft.Container(
+                content=ft.Text(name, color="black", size=16, weight=ft.FontWeight.BOLD),
+                alignment=ft.alignment.center,
+                expand=True
+            )
+
+            def create_bullet(text):
+                return ft.Row([
+                    ft.Text("•", color="white", size=12),
+                    ft.Text(text, color="white", size=12, expand=True)
+                ], spacing=5)
+
+            card_description = ft.Container(
+                padding=10,
+                content=ft.Column([create_bullet(desc) for desc in description_list], spacing=5),
+                visible=False,
+                alignment=ft.alignment.top_left,
+                expand=True,
+            )
+            
+            card_container = ft.Container(
+                content=ft.Stack([card_content, card_description]),
+                width=230,
+                height=230,
+                bgcolor="#f1f1f1",
+                border_radius=10,
+                padding=15,
+                on_hover=_on_hover,
+                expand=True,
+            )
+            return card_container
+
+        def create_bullet_point(text_content, is_bold=False):
+            return ft.Row(
+                controls=[
+                    ft.Text("•", color="white", size=14, weight=ft.FontWeight.BOLD),
+                    ft.Text(
+                        text_content, color="white", size=13,
+                        weight=ft.FontWeight.BOLD if is_bold else ft.FontWeight.NORMAL,
+                    ),
+                ],
+                spacing=10
+            )
+
+        kmp_desc = ["Cara Kerja: Memanfaatkan kegagalan untuk menghindari perbandingan yang tidak perlu.", "Kelebihan: Sangat efisien, tidak pernah menggeser pointer teks ke belakang.", "Penggunaan: Pilihan stabil dan andal untuk penggunaan umum."]
+        bm_desc = ["Cara Kerja: Mencocokkan pattern dari belakang ke depan, melakukan lompatan besar.", "Kelebihan: Umumnya algoritma tercepat, terutama untuk pattern panjang.", "Penggunaan: Pilihan terbaik untuk pattern panjang dalam teks besar."]
+        ac_desc = ["Cara Kerja: Mencari semua keyword sekaligus dalam sekali jalan.", "Kelebihan: Sangat cepat untuk pencarian multi-pattern.", "Penggunaan: Ideal saat mencari banyak kata kunci secara bersamaan. (Fitur Bonus)"]
+
+        return ft.Container(
+            expand=True, alignment=ft.alignment.center, bgcolor=ft.Colors.with_opacity(0.8, "black"),
+            visible=False, on_click=self.close_tips_modal,
+            content=ft.Container(
+                width=800, height=600, bgcolor="#f1f1f1", border_radius=10,
+                padding=ft.padding.symmetric(vertical=15, horizontal=25), on_click=lambda e: None,
+                content=ft.Column(
+                    [
+                        ft.Row([
+                            ft.Text("Tips", weight=ft.FontWeight.BOLD, size=20, color="black"),
+                            ft.IconButton(ft.Icons.CLOSE, on_click=self.close_tips_modal, icon_color="black")
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Text("How to Use", color="white", weight=ft.FontWeight.BOLD, size=16),
+                                create_bullet_point("Masukkan Kata Kunci (Keywords): Tulis skill, posisi, atau kriteria lain. Pisahkan dengan koma."),
+                                create_bullet_point("Pilih Algoritma yang diinginkan: Pilih antara KMP, BM, atau AC."),
+                                create_bullet_point("Tentukan Top Matches: Atur jumlah CV teratas yang ingin ditampilkan."),
+                                create_bullet_point("Fuzzy Matching: Jika pencarian exact tidak ada, sistem otomatis mencari kata yang mirip."),
+                            ], scroll=ft.ScrollMode.ADAPTIVE, spacing=8),
+                            expand=2, bgcolor="#1e1e2f", border_radius=10, padding=15
+                        ),
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Text("Perbedaan Algoritma", color="white", weight=ft.FontWeight.BOLD, size=16),
+                                ft.Row(
+                                    controls=[
+                                        create_algorithm_card("Knuth-Morris-Pratt", kmp_desc),
+                                        create_algorithm_card("Boyer-Moore", bm_desc),
+                                        create_algorithm_card("Aho-Corasick", ac_desc),
+                                    ],
+                                    alignment=ft.MainAxisAlignment.SPACE_AROUND,
+                                    vertical_alignment=ft.CrossAxisAlignment.CENTER
+                                )
+                            ], spacing=10),
+                            expand=3, bgcolor="#1e1e2f", border_radius=10, padding=15
+                        ),
                     ],
                     spacing=15,
                     horizontal_alignment=ft.CrossAxisAlignment.STRETCH
@@ -346,7 +460,7 @@ class CVApp:
                         ft.Icon(name=ft.Icons.LIGHTBULB_OUTLINE, color="white"),
                         ft.Text("Tips", color="white", size=20, weight=ft.FontWeight.BOLD),
                     ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, alignment=ft.MainAxisAlignment.CENTER),
-                    expand=True, bgcolor="#9497AE", border_radius=10, padding=15, alignment=ft.alignment.center
+                    expand=True, bgcolor="#9497AE", border_radius=10, padding=15, alignment=ft.alignment.center, on_click=self.open_tips_modal, ink=True
                 )
             ], spacing=20),
             bgcolor="#1e1e2f", border_radius=10, padding=25
@@ -372,10 +486,12 @@ class CVApp:
     # Main build function
     def build(self):
         self.modal_layer = self._build_modal_layer()
+        self.tips_modal_layer = self._build_tips_modal_layer()
         left_column = self._build_left_column()
         right_column = self._build_right_column()
 
         self.page.overlay.append(self.modal_layer)
+        self.page.overlay.append(self.tips_modal_layer)
         self.page.add(
             ft.Container(
                 content=ft.ResponsiveRow(
