@@ -5,6 +5,7 @@ from sqlalchemy.sql import func
 from datetime import datetime, date
 import os
 from typing import Optional
+from sqlalchemy import text
 
 Base = declarative_base()
 
@@ -81,3 +82,14 @@ def init_database():
     engine = config.get_engine()
     Base.metadata.create_all(engine)
     return engine
+
+def test_connection():
+    config = DatabaseConfig()
+    engine = config.get_engine()
+
+    try:
+        with engine.connect() as connection:
+            result = connection.execute(text("SELECT 1"))
+            print("Database connection successful:", list(result))
+    except Exception as e:
+        print("Database connection failed:", str(e))

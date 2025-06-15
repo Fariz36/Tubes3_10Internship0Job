@@ -72,7 +72,7 @@ class ATSController:
                 return {
                     'success': True,
                     'message': 'Applicant found',
-                    'data': applicant.to_dict()
+                    'data': applicant
                 }
             else:
                 return {
@@ -242,12 +242,12 @@ class ATSController:
             offset = (page - 1) * page_size
             applications = self.application_repo.get_all_applications(limit=page_size, offset=offset)
             total_count = self.application_repo.get_applications_count()
-            
+
             return {
                 'success': True,
                 'message': f'Found {len(applications)} applications',
                 'data': {
-                    'applications': [application.to_dict() for application in applications],
+                    'applications': applications,
                     'pagination': {
                         'page': page,
                         'page_size': page_size,

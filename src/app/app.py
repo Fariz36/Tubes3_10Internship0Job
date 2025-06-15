@@ -3,7 +3,7 @@ from dotenv import load_dotenv  # Add this import
 import os
 from db.controller.data_service import DataService
 from ui.components import create_candidate_card
-from db.models import init_database
+from db.models import init_database, test_connection
 
 # Load environment variables from .env file
 load_dotenv()
@@ -17,6 +17,7 @@ class CVApp:
         self.algorithm_toggle = None
         
         init_database() 
+        test_connection()
 
         # Modal controls
         self.modal_candidate_name = ft.Text(weight=ft.FontWeight.BOLD, color="white", size=22)

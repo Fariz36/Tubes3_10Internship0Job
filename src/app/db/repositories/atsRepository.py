@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine, Column, Integer, String, Text, Date, DateTime, Enum, ForeignKey
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 from typing import List, Dict, Optional, Tuple
 from datetime import date, datetime
@@ -58,7 +59,7 @@ class ApplicantRepository(BaseRepository):
                 applicant = session.query(ApplicantProfile).filter(
                     ApplicantProfile.applicant_id == applicant_id
                 ).first()
-                return applicant
+                return applicant.to_dict() if applicant else None  # Fixed: convert to dict if found
         except SQLAlchemyError as e:
             logger.error(f"Error getting applicant by ID {applicant_id}: {str(e)}")
             return None
@@ -181,7 +182,8 @@ class ApplicationRepository(BaseRepository):
                     query = query.limit(limit)
                 
                 applications = query.all()
-                return applications
+                dict_applications = [app.to_dict() for app in applications] 
+                return dict_applications
         except SQLAlchemyError as e:
             logger.error(f"Error getting all applications: {str(e)}")
             return []
