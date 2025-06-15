@@ -111,7 +111,7 @@ class CVApp:
         try:
             top_n = int(self.top_matches_input.value)
         except (ValueError, TypeError):
-            top_n = 1
+            top_n = 5
 
         selected_algorithm = self.algorithm_toggle.value
         
