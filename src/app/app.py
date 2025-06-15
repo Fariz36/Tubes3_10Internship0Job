@@ -5,21 +5,21 @@ import os
 import base64
 from db.controller.data_service import DataService
 from ui.components import create_candidate_card
-from db.models import init_database, test_connection
+# from db.models import init_database, test_connection
 
 # Load environment variables from .env file
 load_dotenv()
 
 # APPLICATION CLASS
 class CVApp:
-    def __init__(self, page: ft.Page):
+    def __init__(self, page: ft.Page, data_service: DataService):
         self.page = page
-        self.data_service = DataService()
-        init_database() 
+        # Gunakan instance DataService yang sudah jadi
+        self.data_service = data_service
         self.keywords_field = None
         self.algorithm_toggle = None
         self.tips_modal_layer = None
-
+        
         # Modal controls
         self.modal_candidate_name = ft.Text(weight=ft.FontWeight.BOLD, color="white", size=22)
         self.modal_candidate_birthdate = ft.Text(color="#d3d3d3", size=12)
@@ -564,7 +564,7 @@ class CVApp:
         search_button = ft.Container(
             content=ft.Text("Search", color="white", weight=ft.FontWeight.BOLD),
             height=50, bgcolor="#ED6C35", border_radius=10,
-            alignment=ft.alignment.center, on_click=self.search_click
+            alignment=ft.alignment.center, on_click=self.search_click, ink=True
         )
 
         # Search Panel 
