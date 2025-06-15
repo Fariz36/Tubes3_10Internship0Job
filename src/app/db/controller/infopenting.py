@@ -23,7 +23,7 @@ class InfoPentingGacorRealNoHoax:
         
         self.skills_patterns = [
             r'(?i)(?:skills|core qualifications|technical skills|competencies|skill highlights|core accomplishments)\s*\n(.*?)(?=\n[A-Z][A-Za-z\s]*\n|\n(?:Additional|Interests|Professional|References)|\Z)',
-            r'(?i)(?:skills|core qualifications|technical skills|competencies|skill highlights|core accomplishments)\s*(.*?)(?=(?:Additional|Interests|Professional|References)|\Z)',
+            r'(?i)(?:skills|technical skills|competencies|skill highlights|core accomplishments)\s*(.*?)(?=(?:Additional|Interests|Professional|References)|\Z)',
         ]
     
     def read_pdf(self, cv_path: str) -> str:
@@ -49,24 +49,30 @@ class InfoPentingGacorRealNoHoax:
                 return ""
     
     def clean_text(self, text: str) -> str:
-        """Clean extracted text by removing extra whitespace and formatting"""
+        """Clean extracted text by preserving line breaks but removing formatting and extra spaces"""
         if not text:
             return ""
         
-        # Remove extra whitespace and newlines
-        text = re.sub(r'\s+', ' ', text.strip())
-        # Remove any leftover formatting artifacts
-        text = re.sub(r'[^\w\s\.,;:()\-/&]', '', text)
-        return text
+        cleaned_lines = []
+        for line in text.splitlines():
+            line = line.strip()
+            line = re.sub(r'\s+', ' ', line)  # normalize spaces inside the line
+            line = re.sub(r'[^\w\s\.,;:()\-/&]', '', line)  # remove weird artifacts
+            if line:  # skip empty lines
+                cleaned_lines.append(line)
     
+        return '\n'.join(cleaned_lines)
+
     def extract_section(self, cv_text: str, patterns: List[str]) -> str:
         """Extract a specific section from CV text using regex patterns"""
+        res = ""
         for pattern in patterns:
             match = re.search(pattern, cv_text, re.DOTALL | re.IGNORECASE)
             if match:
-                extracted_text = match.group(1).strip()
-                return self.clean_text(extracted_text)
-        return ""
+                extracted_text = match.group(1)
+                res += self.clean_text(extracted_text.rstrip())
+                res += '\n'
+        return res if res else None
     
     def get_summaries(self, cv_path: str) -> List[str]:
         """ Extract summary information from CV """
@@ -80,6 +86,24 @@ class InfoPentingGacorRealNoHoax:
             return [{"text" : summary_text}]
         else:
             return []
+        
+    def normalize_dates_to_month_year(self, text: str) -> str:
+        # Define month mapping
+        month_map = {
+            "january": "01", "february": "02", "march": "03", "april": "04",
+            "may": "05", "june": "06", "july": "07", "august": "08",
+            "september": "09", "october": "10", "november": "11", "december": "12"
+        }
+
+        # Regex to find formats like "September 2014" or "September-2014"
+        pattern = re.compile(r'\b(' + '|'.join(month_map.keys()) + r')[\s\-]+(\d{4})\b', re.IGNORECASE)
+
+        def repl(match):
+            month = match.group(1).lower()
+            year = match.group(2)
+            return f"{month_map[month]}/{year}"
+
+        return pattern.sub(repl, text)
     
     def get_job_histories(self, cv_path: str) -> List[Dict[str, str]]:
         """ Extract experience information from CV """
@@ -87,21 +111,29 @@ class InfoPentingGacorRealNoHoax:
         if not cv_text:
             return []
         
+        print(cv_text)
+        
         experience_text = self.extract_section(cv_text, self.experience_patterns)
+        experience_text = experience_text.lower()
+        experience_text = self.normalize_dates_to_month_year(experience_text)
+
         if not experience_text:
             return []
+           
+        print(f"Extracted Experience Text: {experience_text}...")  # Debugging line
         
         job_histories = []
         job_patterns = [
             r'(\d{1,2}/\d{4}|\w+\s+\d{4})\s+to\s+(\w+|\d{1,2}/\d{4})\s*\n?([A-Z][A-Za-z\s&-]+?)(?:\s+Company Name|\s+[A-Z][a-z]+\s*,?\s*[A-Z][a-z]*)',
             r'(\d{1,2}/\d{4}|\w+\s+\d{4})\s+to\s+(\w+|\d{1,2}/\d{4})\s*([A-Z][A-Za-z\s&-]+?)\s+([A-Za-z\s,&-]+)',
-            r'(\d{4})\s+to\s+(\d{4}|\w+)\s*([A-Z][A-Za-z\s&-]+?)\s+([A-Za-z\s,&-]+)'
+            r'(\d{4})\s+to\s+(\d{4}|\w+)\s*([A-Z][A-Za-z\s&-]+?)\s+([A-Za-z\s,&-]+)',
         ]
         
         for pattern in job_patterns:
             matches = re.findall(pattern, experience_text, re.MULTILINE)
             
             for match in matches:
+                print(match)
                 if len(match) >= 3:
                     start_date = match[0].strip()
                     end_date = match[1].strip()
@@ -117,6 +149,23 @@ class InfoPentingGacorRealNoHoax:
                             "company": company,
                             "period": f"{start_date} to {end_date}"
                         })
+
+        next_pattern = r'(\d{2}/\d{4})\s+to\s+(\d{2}/\d{4})\s+([a-zA-Z&.\s,-]+?)\s+([a-zA-Z/&\s\-.()]+)\s+([a-zA-Z/&\s\-.(),]+\n)'
+        matches = re.findall(next_pattern, experience_text)
+
+        job_histories = []
+        for match in matches:
+            start_date = match[0].strip()
+            end_date = match[1].strip()
+            company = re.sub(r'\s+', ' ', match[2].strip())
+            position = re.sub(r'\s+', ' ', match[4].strip())
+
+            if len(position) > 3 and not re.match(r'^[A-Z]{2,}$', position):
+                job_histories.append({
+                    "position": position,
+                    "company": company,
+                    "period": f"{start_date} to {end_date}"
+                })
         
         # If no structured matches found, try to extract job titles manually
         if not job_histories:
@@ -211,8 +260,8 @@ class InfoPentingGacorRealNoHoax:
         
         skills_text = self.extract_section(cv_text, self.skills_patterns)
         if not skills_text:
-            return []
-        
+            return []  
+
         # Split by common delimiters
         skills = re.split(r'[,;·•\n]', skills_text)
         # Clean and filter empty skills

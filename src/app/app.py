@@ -127,7 +127,7 @@ class CVApp:
             
             # Set modal title
             candidate_name = f"{candidate_data['first_name']} {candidate_data['last_name']}"
-            self.pdf_modal_title.value = f"CV - {candidate_name}"
+            self.pdf_modal_title.value = f"CV - {candidate_name} - {candidate_data['cv_path']} - {candidate_data['application_id']}"
             
             # Show loading indicator
             self.pdf_images_column.controls.append(
