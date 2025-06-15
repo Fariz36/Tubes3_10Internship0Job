@@ -254,6 +254,13 @@ class Matcher:
                     results[i] = ""
 
         return results
+    
+    def set_keywords(self, queries: List[str]):
+        """Set the keywords for matching"""
+        if not queries:
+            raise ValueError("Queries list cannot be empty")
+        self.queries = [query.lower() for query in queries]
+        self.automaton_trie = AhoCorasick(self.queries)
         
     def _get_important_information(self, text: str) -> Dict[str, Union[str, List[str]]]:
         """Extract important information from the text"""
@@ -301,9 +308,7 @@ class Matcher:
                     "result" : self._exact_match(text, self.queries)
                     })
             elif method == 'AC':
-                if (self.automaton_trie is None):
-                    # build the automaton trie here
-                    automaton_trie = AhoCorasick(self.queries)
+                automaton_trie = AhoCorasick(self.queries)
                 result.append({
                     "id" : id,
                     "result" : automaton_trie.search_words(text)

@@ -8,6 +8,22 @@ class DataService:
         self.controller = ATSController()
         self.algorithm_toggle = True 
 
+        self.app_dict = {}
+        self.matcher = Matcher(self.get_all_text(), [])
+
+    def get_all_text(self) -> str:
+        app_result = self.controller.get_all_applications()
+        if not app_result['success']:
+            return []
+        
+        self.app_dict = {app["detail_id"]: app for app in app_result['data']['applications']}
+        
+        queries = []
+        texts = [(app['detail_id'], app['cv_path']) for app in app_result['data']['applications']]
+
+        return texts
+
+
     def get_total_cvs(self):
         result = self.controller.get_dashboard_stats()
         return result['data']['total_applicants'] if result['success'] else 0
@@ -15,24 +31,16 @@ class DataService:
     def search_candidates(self, keywords: list, top_n: int, algorithm: str):
         candidates = []
 
-        app_result = self.controller.get_all_applications()
-        if not app_result['success']:
-            return []
-        
-        app_dict = {app["detail_id"]: app for app in app_result['data']['applications']}
-        
-        queries = [kw.lower() for kw in keywords]
-        texts = [(app['detail_id'], app['cv_path']) for app in app_result['data']['applications']]
+        self.matcher.set_keywords(keywords)
+        result = self.matcher.match(algorithm)
 
-        matcher = Matcher(texts, queries)
-        result = matcher.match(algorithm)
+        sorted_result = sorted(result, key=lambda x: x["result"]["total_matched"], reverse=True)[:top_n]   
 
-        sorted_result = sorted(result, key=lambda x: x["result"]["total_matched"], reverse=True)[:top_n]
-
-        print(queries)        
+        # prune further if total matched is zero
+        sorted_result = [item for item in sorted_result if item['result']['total_matched'] > 0]   
 
         for item in sorted_result:
-            application = app_dict.get(item['id'])
+            application = self.app_dict.get(item['id'])
             datum = self.controller.get_applicant(application['applicant_id'])
             if (datum['success'] and not datum['data']) or not datum['success']:
                 print(f"Skipping application {item['id']} due to missing data.")
