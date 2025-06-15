@@ -120,6 +120,9 @@ class AhoCorasick:
                     ch = ord(character.lower()) - 97
                 elif (character.isdigit()):
                     ch = ord(character) - 22
+                else:
+                    ch = 36
+
 
                 # Allocate a new node (create a new state)
                 # if a node for ch doesn't exist.
