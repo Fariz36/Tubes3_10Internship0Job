@@ -40,7 +40,8 @@ class CVApp:
             border_radius=10,
             width=70,
             height=50,
-            text_align=ft.TextAlign.CENTER
+            text_align=ft.TextAlign.CENTER,
+            text_style=ft.TextStyle(color="white"),
         )
         self.total_cv_text = ft.Text("0 CV", color="white", size=24, weight=ft.FontWeight.BOLD)
 
@@ -103,11 +104,8 @@ class CVApp:
         except (ValueError, TypeError):
             top_n = 5
 
-        selected_algorithm = "BM" if self.algorithm_toggle.value else "KMP"
-
-        # debugging
-        top_n = 5
-
+        selected_algorithm = self.algorithm_toggle.value
+        
         top_candidates = self.data_service.search_candidates(
             keywords=keywords,
             top_n=top_n,
@@ -235,7 +233,19 @@ class CVApp:
             text_style=ft.TextStyle(color="black"),
             hint_style=ft.TextStyle(color="#888888") 
         )
-        self.algorithm_toggle = ft.CupertinoSwitch(value=True, active_color="#ED6C35", inactive_track_color="#ED6C35")
+        
+        self.algorithm_toggle = ft.RadioGroup(
+            value="BM",  # Default algorithm
+            content=ft.Row(
+                [
+                    ft.Radio(value="KMP", label="KMP", label_style=ft.TextStyle(color="white"), active_color="#ED6C35"),
+                    ft.Radio(value="BM", label="BM", label_style=ft.TextStyle(color="white"), active_color="#ED6C35"),
+                    ft.Radio(value="AC", label="AC", label_style=ft.TextStyle(color="white"), active_color="#ED6C35"),
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_EVENLY
+            )
+        )
+
         search_button = ft.Container(
             content=ft.Text("Search", color="white", weight=ft.FontWeight.BOLD),
             height=50, bgcolor="#ED6C35", border_radius=10,
@@ -253,15 +263,8 @@ class CVApp:
                             expand=True,
                             bgcolor="#1e1e2f", 
                             border_radius=8,
-                            padding=ft.padding.symmetric(vertical=10, horizontal=10),
-                            content=ft.Row(
-                                [
-                                    ft.Text("KMP"),
-                                    self.algorithm_toggle,
-                                    ft.Text("BM"),
-                                ],
-                                alignment=ft.MainAxisAlignment.SPACE_EVENLY
-                            )
+                            padding=ft.padding.symmetric(vertical=12, horizontal=10),
+                            content=self.algorithm_toggle
                         ),
                         ft.Container(
                             expand=True,
@@ -270,9 +273,9 @@ class CVApp:
                             padding=ft.padding.symmetric(vertical=4),
                             content=ft.Row(
                                 [
-                                    ft.IconButton(ft.Icons.REMOVE, on_click=lambda e: self.change_top_matches(-1)),
+                                    ft.IconButton(ft.Icons.REMOVE, on_click=lambda e: self.change_top_matches(-1), icon_color="white"),
                                     self.top_matches_input,
-                                    ft.IconButton(ft.Icons.ADD, on_click=lambda e: self.change_top_matches(1)),
+                                    ft.IconButton(ft.Icons.ADD, on_click=lambda e: self.change_top_matches(1), icon_color="white"),
                                 ],
                                 alignment=ft.MainAxisAlignment.SPACE_EVENLY,
                                 spacing=0
