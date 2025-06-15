@@ -32,8 +32,8 @@
    </strong>
  </div>
 
+ ## ⚙️ Teknologi yang Digunakan
 <div align="center">
-  ## ⚙️ Teknologi yang Digunakan
   
 | Teknologi        | Deskripsi                                       |
 |------------------|-------------------------------------------------|
@@ -176,5 +176,5 @@ Fitur interaktif meliputi:
  <br/>
  
  <div align="center">
- Strategi Algoritma • © 2025 • Labpro Hebat
+ Strategi Algoritma • © 2025 • 10Internship0Job
  </div>
