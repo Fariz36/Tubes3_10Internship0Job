@@ -26,13 +26,13 @@ class DataService:
 
     def get_total_cvs(self):
         result = self.controller.get_dashboard_stats()
-        return result['data']['total_applicants'] if result['success'] else 0
+        return result['data']['total_applications'] if result['success'] else 0
 
     def search_candidates(self, keywords: list, top_n: int, algorithm: str):
         candidates = []
 
         self.matcher.set_keywords(keywords)
-        result = self.matcher.match(algorithm)
+        result, exact_match_calculation_time, fuzzy_match_calculation_time = self.matcher.match(algorithm)
 
         sorted_result = sorted(result, key=lambda x: x["result"]["total_matched"], reverse=True)[:top_n]   
 
@@ -55,8 +55,6 @@ class DataService:
                 "birthdate": datetime.datetime.strptime(datum_data['date_of_birth'], "%Y-%m-%d").date() if datum_data['date_of_birth'] else None,
             }
             candidate["matched_keywords"] = item['result']
-            print(candidate)
-
             candidates.append(candidate)
 
-        return candidates[:top_n]
+        return candidates[:top_n], exact_match_calculation_time, fuzzy_match_calculation_time

@@ -45,6 +45,12 @@ class CVApp:
             text_style=ft.TextStyle(color="white"),
         )
         self.total_cv_text = ft.Text("0 CV", color="white", size=24, weight=ft.FontWeight.BOLD)
+        self.exact_time = 0
+        self.fuzzy_time = 0
+        self.exact_time_text = ft.Text(f"{self.exact_time} ms", color="white", weight=ft.FontWeight.BOLD)
+        self.fuzzy_time_text = ft.Text(f"{self.fuzzy_time} ms", color="white", weight=ft.FontWeight.BOLD)
+
+
 
     # Modal layer
     def open_summary_modal(self, e, candidate_data):
@@ -115,11 +121,15 @@ class CVApp:
 
         selected_algorithm = self.algorithm_toggle.value
         
-        top_candidates = self.data_service.search_candidates(
+        top_candidates, self.exact_time, self.fuzzy_time = self.data_service.search_candidates(
             keywords=keywords,
             top_n=top_n,
             algorithm=selected_algorithm
         )
+        self.exact_time = int(1000 * self.exact_time)  # Convert to milliseconds
+        self.fuzzy_time = int(1000 * self.fuzzy_time)
+        self.exact_time_text.value = f"{self.exact_time} ms"
+        self.fuzzy_time_text.value = f"{self.fuzzy_time} ms"
 
         self.results_grid.controls.clear()
         if not top_candidates:
@@ -430,7 +440,7 @@ class CVApp:
                                 ft.Icon(name=ft.Icons.SEARCH, color="#90EE90", size=24),
                                 ft.Column([
                                     ft.Text("Exact Match", color="white", size=12), 
-                                    ft.Text("99 ms", color="white", weight=ft.FontWeight.BOLD)
+                                    self.exact_time_text
                                 ], spacing=0, horizontal_alignment=ft.CrossAxisAlignment.START)
                             ],
                             vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -445,7 +455,7 @@ class CVApp:
                                 ft.Icon(name=ft.Icons.WIFI_FIND, color="#FFD700", size=24),
                                 ft.Column([
                                     ft.Text("Fuzzy Match", color="white", size=12), 
-                                    ft.Text("105 ms", color="white", weight=ft.FontWeight.BOLD)
+                                    self.fuzzy_time_text
                                 ], spacing=0, horizontal_alignment=ft.CrossAxisAlignment.START)
                             ],
                             vertical_alignment=ft.CrossAxisAlignment.CENTER,

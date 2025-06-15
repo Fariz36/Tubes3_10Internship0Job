@@ -6,8 +6,6 @@ def create_candidate_card(candidate_data, on_summary_click_callback):
 
     data = candidate_data.get("matched_keywords", {})
 
-    print(data)
-
     keyword_controls = [
         ft.Text(f"{i}. {kw}: {count} occurrences", color="#444444", size=12)
         for i, (kw, count) in enumerate(zip(data["keywords"], data["matched_queries"]), 1)

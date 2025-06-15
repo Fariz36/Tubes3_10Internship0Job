@@ -2,7 +2,51 @@ import os
 import re
 from typing import List, Dict, Union, Tuple
 import fitz
+import time
+import copy
 import concurrent.futures
+from concurrent.futures import ProcessPoolExecutor, as_completed
+
+def levenshtein_distance(s1: str, s2: str) -> int:
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+
+    if len(s2) == 0:
+        return len(s1)
+
+    dp = list(range(len(s2) + 1))
+    for i in range(1, len(s1) + 1):
+        new_dp = [i] * (len(s2) + 1)
+        for j in range(1, len(s2) + 1):
+            cost = 0 if s1[i - 1] == s2[j - 1] else 1
+            new_dp[j] = min(dp[j] + 1, new_dp[j - 1] + 1, dp[j - 1] + cost)
+        dp = new_dp
+    return dp[len(s2)]
+
+
+def calculate_similarity(str1: str, str2: str) -> float:
+    if len(str1) == 0 or len(str2) == 0:
+        return 0.0
+    longer = str1 if len(str1) > len(str2) else str2
+    shorter = str2 if len(str1) > len(str2) else str1
+    if len(longer) == 0:
+        return 1.0
+    return (len(longer) - levenshtein_distance(longer, shorter)) / len(longer)
+
+
+def fuzzy_match_1_query(text: str, query: str, threshold: float) -> int:
+    assert 0 <= threshold <= 1, "Threshold must be between 0 and 1"
+    count = 0
+    for word in text.split():
+        if len(query) * 2 < len(word) or len(word) * 2 < len(query):
+            continue
+        if calculate_similarity(word, query) > threshold:
+            count += 1
+    return count
+
+def fuzzy_match_worker(j, i, text, query, threshold):
+    count = fuzzy_match_1_query(text, query, threshold)
+    return (j, i, count)
 
 # SOURCE : https://www.geeksforgeeks.org/dsa/aho-corasick-algorithm-pattern-searching/
 class AhoCorasick:
@@ -209,8 +253,10 @@ class Matcher:
         self.automaton_trie = None
 
         self.queries = [query.lower() for query in queries]
-
         self.texts = self._extract_texts_concurrently()
+
+        self.exact_match_calculation_time = 0
+        self.fuzzy_match_calculation_time = 0
 
     def extract_text(self, path: str, case: int) -> str:
         if not os.path.exists(path):
@@ -256,11 +302,13 @@ class Matcher:
         return results
     
     def set_keywords(self, queries: List[str]):
-        """Set the keywords for matching"""
+        """Set the keywords for matching + restart all calculations"""
         if not queries:
             raise ValueError("Queries list cannot be empty")
         self.queries = [query.lower() for query in queries]
         self.automaton_trie = AhoCorasick(self.queries)
+        self.exact_match_calculation_time = 0
+        self.fuzzy_match_calculation_time = 0
         
     def _get_important_information(self, text: str) -> Dict[str, Union[str, List[str]]]:
         """Extract important information from the text"""
@@ -283,14 +331,20 @@ class Matcher:
                 text += page.get_text()
         return text
     
-    def match(self, method: str, threshold: float = 0.8) -> Dict:
+    def match(self, method: str, threshold: float = 0.7) -> Dict:
         if not self.queries:
             raise ValueError("Queries list is empty")
-    
+
+
         result = []    
+        counter = [0] * len(self.queries)  # Counter for each query
+
+        # exact matching
         for i in range(len(self.sources_id)):
             text = self.texts[i]
             id = self.sources_id[i]
+
+            time_start = time.time()
 
             if method == 'exact':
                 result.append({
@@ -320,7 +374,40 @@ class Matcher:
                 })
             else:
                 raise ValueError(f"Unsupported matching method: {method}")
-        return result
+
+            time_end = time.time()
+            self.exact_match_calculation_time += (time_end - time_start)
+
+            for j in range(len(self.queries)):
+                counter[j] += result[i]['result']['matched_queries'][j]
+
+        # fuzzy matching
+        futures = []
+        total_fuzzy_time = 0.0
+        time_start = time.time()
+
+        with ProcessPoolExecutor() as executor:
+            for i in range(len(self.queries)):
+                if counter[i] == 0:
+                    for j in range(len(self.sources_id)):
+                        futures.append(executor.submit(
+                            fuzzy_match_worker,
+                            j,
+                            i,
+                            self.texts[j],
+                            self.queries[i],
+                            threshold
+                        ))
+
+            for future in as_completed(futures):
+                j, i, count = future.result()
+                result[j]['result']['matched_queries'][i] = count
+                result[j]['result']['total_matched'] += count
+                print(f"Fuzzy match for query '{self.queries[i]}' in document {self.sources_id[j]}: {count} occurrences")
+
+        self.fuzzy_match_calculation_time = time.time() - time_start
+
+        return result, self.exact_match_calculation_time, self.fuzzy_match_calculation_time
 
     def _exact_match_1_query(self, text:str, query: str) -> Dict:  
         matches = []
@@ -435,77 +522,10 @@ class Matcher:
             'total_matched': result_sum,
         }
 
-    def _calculate_similarity(self, str1: str, str2: str) -> float:
-        """Calculate similarity between two strings using Levenshtein distance"""
-        if len(str1) == 0 or len(str2) == 0:
-            return 0.0
-        
-        # Simple similarity calculation
-        longer = str1 if len(str1) > len(str2) else str2
-        shorter = str2 if len(str1) > len(str2) else str1
-        
-        if len(longer) == 0:
-            return 1.0
-        
-        return (len(longer) - self._levenshtein_distance(longer, shorter)) / len(longer)
-
-    def _levenshtein_distance(self, s1: str, s2: str) -> int:
-        if len(s1) < len(s2):
-            return self._levenshtein_distance(s2, s1)
-        
-        if len(s2) == 0:
-            return len(s1)
-        
-        dp = list(range(len(s2) + 1))
-        for i in range(1, len(s1) + 1):
-            new_dp = [i] * (len(s2) + 1)
-            for j in range(1, len(s2) + 1):
-                cost = 0 if s1[i - 1] == s2[j - 1] else 1
-                new_dp[j] = min(dp[j] + 1, new_dp[j - 1] + 1, dp[j - 1] + cost)
-            dp = new_dp
-
-        return dp[len(s2)]
-    
-    def _fuzzy_match_1_query(self, text:str, query: str, threshold:float) -> Dict:
-        assert threshold >= 0 and threshold <= 1, "Threshold must be between 0 and 1"
-
-        """Fuzzy matching using simple similarity calculation"""
-
-        matches = []
-        count = 0
-        
-        for word in text.split():
-            if (query in word.lower()):
-                matches.append(word)
-                count += 1
-                continue
-
-            if (len(query)*2 < len(word) or len(word)*2 < len(query)):
-                continue
-
-            if self._calculate_similarity(word, query) > threshold:
-                matches.append(word)
-                count += 1
-
-        return count
-    
-    def _fuzzy_match(self, text:str, query: List[str], threshold: float = 0.8) -> Dict:
-        results = []
-        result_sum = 0
-        for i in query:
-            results.append(self._fuzzy_match_1_query(text, i, threshold))
-            result_sum += results[-1]
-            
-        return {
-            'keywords' : query,
-            'matched_queries': results,
-            'total_matched': result_sum,
-        }
-
 if __name__ == "__main__":
     matcher = Matcher(["10554236.pdf"], ["financial", "other"])
     print(matcher.match("KMP"))
     print(matcher.match("BM"))
     print(matcher.match("exact"))
-    print(matcher.match("fuzzy", threshold=0.6))
+    print(matcher.match("fuzzy", threshold=0.7))
     print(matcher.match("AC"))
