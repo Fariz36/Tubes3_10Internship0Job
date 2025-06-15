@@ -2,6 +2,7 @@ import datetime
 from db.controller.atsController import ATSController
 from typing import List, Dict
 from db.controller.matcher import Matcher, AhoCorasick
+from db.controller.infopenting import InfoPentingGacorRealNoHoax
 
 class DataService:
     def __init__(self):
@@ -10,6 +11,8 @@ class DataService:
 
         self.app_dict = {}
         self.matcher = Matcher(self.get_all_text(), [])
+
+        self.extractor = InfoPentingGacorRealNoHoax()
 
     def get_all_text(self) -> str:
         app_result = self.controller.get_all_applications()
@@ -47,6 +50,7 @@ class DataService:
                 continue
             datum_data = datum['data']
             candidate = {
+                "application_id": item['id'],
                 "id": datum_data['applicant_id'],
                 "first_name": datum_data['first_name'],
                 "last_name": datum_data['last_name'],
@@ -55,6 +59,23 @@ class DataService:
                 "birthdate": datetime.datetime.strptime(datum_data['date_of_birth'], "%Y-%m-%d").date() if datum_data['date_of_birth'] else None,
             }
             candidate["matched_keywords"] = item['result']
+            candidate["cv_path"] = application['cv_path'] if application else None
             candidates.append(candidate)
 
         return candidates[:top_n], exact_match_calculation_time, fuzzy_match_calculation_time
+    
+    def get_skills_by_application_id(self, application_id: str):
+        application = self.app_dict.get(application_id)
+        return self.extractor.get_skills(application['cv_path'])
+    
+    def get_summary_by_application_id(self, application_id: str):
+        application = self.app_dict.get(application_id)
+        return self.extractor.get_summaries(application['cv_path'])
+
+    def get_job_history_by_application_id(self, application_id: str):
+        application = self.app_dict.get(application_id)
+        return self.extractor.get_job_histories(application['cv_path'])
+
+    def get_education_by_application_id(self, application_id: str):
+        application = self.app_dict.get(application_id)
+        return self.extractor.get_educations(application['cv_path'])

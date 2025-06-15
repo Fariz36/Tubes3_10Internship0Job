@@ -1,6 +1,8 @@
 import flet as ft
+import fitz 
 from dotenv import load_dotenv  # Add this import
 import os
+import base64
 from db.controller.data_service import DataService
 from ui.components import create_candidate_card
 from db.models import init_database, test_connection
@@ -13,12 +15,10 @@ class CVApp:
     def __init__(self, page: ft.Page):
         self.page = page
         self.data_service = DataService()
+        init_database() 
         self.keywords_field = None
         self.algorithm_toggle = None
         self.tips_modal_layer = None
-        
-        init_database() 
-        test_connection()
 
         # Modal controls
         self.modal_candidate_name = ft.Text(weight=ft.FontWeight.BOLD, color="white", size=22)
@@ -26,6 +26,7 @@ class CVApp:
         self.modal_candidate_address = ft.Text(color="#d3d3d3", size=12)
         self.modal_candidate_phone = ft.Text(color="#d3d3d3", size=12)
         self.modal_skills_list = ft.Row(wrap=True, spacing=8)
+        self.modal_summary_text = ft.Column(spacing=8)
         self.modal_job_history_list = ft.Column(spacing=8)
         self.modal_education_list = ft.Column(spacing=8)
         self.results_grid = ft.GridView(
@@ -50,21 +51,27 @@ class CVApp:
         self.exact_time_text = ft.Text(f"{self.exact_time} ms", color="white", weight=ft.FontWeight.BOLD)
         self.fuzzy_time_text = ft.Text(f"{self.fuzzy_time} ms", color="white", weight=ft.FontWeight.BOLD)
 
-
+        # view CV modal
+        self.pdf_modal_layer = None
+        self.pdf_images_column = ft.Column(spacing=10, scroll=ft.ScrollMode.ADAPTIVE)
+        self.pdf_modal_title = ft.Text("", weight=ft.FontWeight.BOLD, size=20, color="black")
+        self.pdf_loading_indicator = ft.ProgressRing(width=50, height=50, stroke_width=4)
+        self.pdf_error_text = ft.Text("", color="red", size=16)
 
     # Modal layer
     def open_summary_modal(self, e, candidate_data):
         # print(f"Opening summary for: {candidate_data['name']}") # debug
 
         # Profile
-        self.modal_candidate_name.value = candidate_data['name']
+        self.modal_candidate_name.value = candidate_data['first_name'] + " " + candidate_data['last_name']
         self.modal_candidate_birthdate.value = f"Birthdate: {candidate_data['birthdate'].strftime('%d-%m-%Y')}"
         self.modal_candidate_address.value = f"Address: {candidate_data['address']}"
         self.modal_candidate_phone.value = f"Phone: {candidate_data['phone']}"
         
         # Skills
         self.modal_skills_list.controls.clear()
-        for skill in candidate_data["skills"]:
+        skills = self.data_service.get_skills_by_application_id(candidate_data["application_id"])
+        for skill in skills:
             self.modal_skills_list.controls.append(
                 ft.Container(
                     content=ft.Text(skill, color="white", size=12),
@@ -74,9 +81,22 @@ class CVApp:
                 )
             )
 
+        # Summary
+        self.modal_summary_text.controls.clear()
+        summaries = self.data_service.get_summary_by_application_id(candidate_data["application_id"])
+        for summary in summaries:
+            self.modal_summary_text.controls.append(
+                ft.Column(
+                    [ft.Text(summary['text'], color="white", size=14, weight=ft.FontWeight.NORMAL)],
+                    spacing=5
+                )
+            )
+            
+
         # Job History
         self.modal_job_history_list.controls.clear()
-        for job in candidate_data["job_history"]:
+        jobs = self.data_service.get_job_history_by_application_id(candidate_data["application_id"])
+        for job in jobs:
              self.modal_job_history_list.controls.append(
                 ft.Column([
                     ft.Text(job['position'], color="white", weight=ft.FontWeight.BOLD),
@@ -86,7 +106,8 @@ class CVApp:
 
         # Education
         self.modal_education_list.controls.clear()
-        for edu in candidate_data["education"]:
+        educations = self.data_service.get_education_by_application_id(candidate_data["application_id"])
+        for edu in educations:
             self.modal_education_list.controls.append(
                 ft.Column([
                     ft.Text(edu['degree'], color="white", weight=ft.FontWeight.BOLD),
@@ -96,6 +117,167 @@ class CVApp:
             
         self.modal_layer.visible = True
         self.page.update()
+
+    def open_view_cv_modal(self, e, candidate_data, pdf_path):
+        """Open modal to view CV PDF as images"""
+        try:
+            # Clear previous content
+            self.pdf_images_column.controls.clear()
+            self.pdf_error_text.value = ""
+            
+            # Set modal title
+            candidate_name = f"{candidate_data['first_name']} {candidate_data['last_name']}"
+            self.pdf_modal_title.value = f"CV - {candidate_name}"
+            
+            # Show loading indicator
+            self.pdf_images_column.controls.append(
+                ft.Container(
+                    content=ft.Column([
+                        self.pdf_loading_indicator,
+                        ft.Text("Loading PDF...", color="white", size=16)
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    alignment=ft.alignment.center,
+                    height=200
+                )
+            )
+            
+            # Show modal
+            self.pdf_modal_layer.visible = True
+            self.page.update()
+
+            
+            if pdf_path and os.path.exists(pdf_path):
+                self.convert_and_display_pdf(pdf_path)
+            else:
+                self.show_pdf_error("PDF file not found")
+                
+        except Exception as e:
+            self.show_pdf_error(f"Error opening CV: {str(e)}")
+
+    def convert_and_display_pdf(self, pdf_path):
+        """Convert PDF to images and display them"""
+        try:
+            # Clear loading indicator
+            self.pdf_images_column.controls.clear()
+            
+            # Open PDF with PyMuPDF
+            pdf_document = fitz.open(pdf_path)
+            
+            for page_num in range(len(pdf_document)):
+                page = pdf_document.load_page(page_num)
+                
+                # Convert page to image with high quality
+                mat = fitz.Matrix(2.0, 2.0)  # 2x zoom for better quality
+                pix = page.get_pixmap(matrix=mat)
+                
+                # Convert pixmap to bytes
+                img_data = pix.tobytes("png")
+                
+                # Convert to base64 for display in Flet
+                img_base64 = base64.b64encode(img_data).decode()
+                
+                # Create image container
+                image_container = ft.Container(
+                    content=ft.Image(
+                        src_base64=img_base64,
+                        width=700,
+                        fit=ft.ImageFit.CONTAIN,
+                        border_radius=5
+                    ),
+                    bgcolor="white",
+                    border_radius=5,
+                    padding=10,
+                    margin=ft.margin.only(bottom=10)
+                )
+                
+                # Add page number label
+                page_label = ft.Container(
+                    content=ft.Text(
+                        f"Page {page_num + 1} of {len(pdf_document)}", 
+                        color="white", 
+                        size=12,
+                        weight=ft.FontWeight.BOLD
+                    ),
+                    bgcolor="#4E4E6A",
+                    padding=ft.padding.symmetric(horizontal=10, vertical=5),
+                    border_radius=5,
+                    margin=ft.margin.only(bottom=5)
+                )
+                
+                self.pdf_images_column.controls.append(page_label)
+                self.pdf_images_column.controls.append(image_container)
+            
+            pdf_document.close()
+            self.page.update()
+            
+        except Exception as e:
+            self.show_pdf_error(f"Error converting PDF: {str(e)}")
+
+    def show_pdf_error(self, error_message):
+        """Show error message in PDF modal"""
+        self.pdf_images_column.controls.clear()
+        self.pdf_error_text.value = error_message
+        
+        error_container = ft.Container(
+            content=ft.Column([
+                ft.Icon(ft.Icons.ERROR_OUTLINE, color="red", size=50),
+                self.pdf_error_text
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            alignment=ft.alignment.center,
+            height=200
+        )
+        
+        self.pdf_images_column.controls.append(error_container)
+        self.page.update()
+
+    def close_pdf_modal(self, e):
+        """Close PDF modal"""
+        self.pdf_modal_layer.visible = False
+        self.page.update()
+
+    def _build_pdf_modal_layer(self):
+        """Build PDF viewer modal layer"""
+        return ft.Container(
+            expand=True,
+            alignment=ft.alignment.center,
+            bgcolor=ft.Colors.with_opacity(0.8, "black"),
+            visible=False,
+            on_click=self.close_pdf_modal,
+            content=ft.Container(
+                width=800,
+                height=600,
+                bgcolor="#f1f1f1",
+                border_radius=10,
+                padding=ft.padding.symmetric(vertical=15, horizontal=25),
+                on_click=lambda e: None,  # Prevent modal from closing when clicking inside
+                content=ft.Column(
+                    [
+                        # Header
+                        ft.Row(
+                            [
+                                self.pdf_modal_title,
+                                ft.IconButton(
+                                    ft.Icons.CLOSE, 
+                                    on_click=self.close_pdf_modal, 
+                                    icon_color="black"
+                                )
+                            ],
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                        ),
+                        # PDF Content
+                        ft.Container(
+                            content=self.pdf_images_column,
+                            bgcolor="#1e1e2f",
+                            border_radius=10,
+                            padding=15,
+                            expand=True
+                        )
+                    ],
+                    spacing=15,
+                    expand=True
+                )
+            )
+        )
 
     def close_modal(self, e):
         self.modal_layer.visible = False
@@ -145,7 +327,8 @@ class CVApp:
             for candidate in top_candidates:
                 card = create_candidate_card(
                     candidate_data=candidate,
-                    on_summary_click_callback=self.open_summary_modal
+                    on_summary_click_callback=self.open_summary_modal,
+                    on_view_cv_click_callback=self.open_view_cv_modal
                 )
                 self.results_grid.controls.append(card)   
         
@@ -216,6 +399,14 @@ class CVApp:
                             expand=2, 
                             vertical_alignment=ft.CrossAxisAlignment.STRETCH,
                         ),
+                        # Summary container
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Text("Summary", color="white", weight=ft.FontWeight.BOLD, size=16),
+                                self.modal_summary_text
+                            ], scroll=ft.ScrollMode.ADAPTIVE, spacing=10),
+                            expand=2, bgcolor="#1e1e2f", border_radius=10, padding=15
+                        ),
                         # Job History container
                         ft.Container(
                             content=ft.Column([
@@ -238,7 +429,7 @@ class CVApp:
                 )
             )
         )
-    
+        
     def _build_tips_modal_layer(self):
         def create_algorithm_card(name, description_list):
             def _on_hover(e):
@@ -497,11 +688,14 @@ class CVApp:
     def build(self):
         self.modal_layer = self._build_modal_layer()
         self.tips_modal_layer = self._build_tips_modal_layer()
+        self.pdf_modal_layer = self._build_pdf_modal_layer()  # Add this line
         left_column = self._build_left_column()
         right_column = self._build_right_column()
 
         self.page.overlay.append(self.modal_layer)
         self.page.overlay.append(self.tips_modal_layer)
+        self.page.overlay.append(self.pdf_modal_layer)  # Add this line
+        
         self.page.add(
             ft.Container(
                 content=ft.ResponsiveRow(
