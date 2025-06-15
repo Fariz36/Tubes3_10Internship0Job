@@ -1,7 +1,8 @@
 import os
 import re
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Tuple
 import fitz
+import concurrent.futures
 
 # SOURCE : https://www.geeksforgeeks.org/dsa/aho-corasick-algorithm-pattern-searching/
 class AhoCorasick:
@@ -178,6 +179,7 @@ class AhoCorasick:
         # Key here is the found word
         # Value is a list of all occurrences start index
         results = [0] * len(self.words)
+        sum = 0
 
         # Traverse the text through the built machine
         # to find all occurrences of words
@@ -191,31 +193,24 @@ class AhoCorasick:
             for j in range(len(self.words)):
                 if (self.out[current_state] & (1<<j)) > 0:
                     results[j] += 1
-
-        total_queries = len(self.words)
-        queries = self.words
+                    sum += 1
 
         # Return the final result dictionary
         return {
-            'total_queries': total_queries,
-            'query': queries,
+            'keywords' : self.words,
             'matched_queries': results,
-            'method_used': "Aho-Corasick",
+            'total_matched': sum
         }
 
 class Matcher:
-    def __init__(self, cv_paths: List[str], queries: List[str]):
-        self.cv_paths = cv_paths
-        self.texts = []
+    def __init__(self, sources: List[Tuple[str, str]], queries: List[str]):
+        self.sources_id = [source[0] for source in sources]
+        self.cv_paths = [source[1] for source in sources]
         self.automaton_trie = None
 
         self.queries = [query.lower() for query in queries]
 
-        for path in self.cv_paths:
-            if not os.path.exists(path):
-                raise FileNotFoundError(f"File not found: {path}")
-            self.texts.append(self.extract_text(path, 0))
-
+        self.texts = self._extract_texts_concurrently()
 
     def extract_text(self, path: str, case: int) -> str:
         if not os.path.exists(path):
@@ -238,6 +233,27 @@ class Matcher:
         except Exception as e:
             print(f"Error extracting text: {e}")
             return ""
+
+    def _extract_texts_concurrently(self) -> List[str]:
+        def worker(path: str) -> str:
+            if not os.path.exists(path):
+                raise FileNotFoundError(f"File not found: {path}")
+            return self.extract_text(path, 0)
+
+        results = [None] * len(self.cv_paths)
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = {executor.submit(worker, path): i for i, path in enumerate(self.cv_paths)}
+            
+            for future in concurrent.futures.as_completed(futures):
+                i = futures[future]
+                try:
+                    results[i] = future.result()
+                except Exception as e:
+                    print(f"[Error] Failed to extract from {self.cv_paths[i]}: {e}")
+                    results[i] = ""
+
+        return results
         
     def _get_important_information(self, text: str) -> Dict[str, Union[str, List[str]]]:
         """Extract important information from the text"""
@@ -265,22 +281,38 @@ class Matcher:
             raise ValueError("Queries list is empty")
     
         result = []    
-        for text in self.texts:
-            if method == 'exact':
-                result.append(self._exact_match(text, self.queries))
-            elif method == 'KMP':
-                result.append(self._KMP_match(text, self.queries))
-            elif method == 'BM':
-                result.append(self._BM_match(text, self.queries))
-            elif method == 'AC':
-                # TODO: Implement Aho-Corasick algorithm
+        for i in range(len(self.sources_id)):
+            text = self.texts[i]
+            id = self.sources_id[i]
 
+            if method == 'exact':
+                result.append({
+                    "id" : id,
+                    "result" : self._exact_match(text, self.queries)
+                    })
+            elif method == 'KMP':
+                result.append({
+                    "id" : id,
+                    "result" : self._exact_match(text, self.queries)
+                    })
+            elif method == 'BM':
+                result.append({
+                    "id" : id,
+                    "result" : self._exact_match(text, self.queries)
+                    })
+            elif method == 'AC':
                 if (self.automaton_trie is None):
                     # build the automaton trie here
                     automaton_trie = AhoCorasick(self.queries)
-                result.append(automaton_trie.search_words(text))
+                result.append({
+                    "id" : id,
+                    "result" : automaton_trie.search_words(text)
+                })
             elif method == 'fuzzy':
-                result.append(self._fuzzy_match(text, self.queries, threshold))
+                result.append({
+                    "id" : id,
+                    "result" : self._fuzzy_match(text, self.queries, threshold)
+                })
             else:
                 raise ValueError(f"Unsupported matching method: {method}")
         return result
@@ -302,17 +334,16 @@ class Matcher:
     
     def _exact_match(self, text:str, queries: List[str]) -> Dict:
         results = []
+        result_sum = 0
         for query in queries:
             result = self._exact_match_1_query(text, query)
             results.append(result)
-
-        total_queries = len(queries)
+            result_sum += result
 
         return {
-            'total_queries': total_queries,
-            'query': queries,
+            'keywords' : queries,
             'matched_queries': results,
-            'method_used': "exact",
+            'total_matched': result_sum
         }
     
     def _KMP_match_1_query(self, text:str, query: str) -> List:
@@ -340,18 +371,17 @@ class Matcher:
 
         return count
         
-    def _KMP_match(self, text:str, query: List[str]) -> Dict:
-        result = []
-        for i in query:
-            result.append(self._KMP_match_1_query(text, i))
-
-        total_queries = len(self.queries)
+    def _KMP_match(self, text:str, queries: List[str]) -> Dict:
+        results = []
+        result_sum = 0
+        for i in queries:
+            results.append(self._KMP_match_1_query(text, i))
+            result_sum += results[-1]
 
         return {
-            'total_queries': total_queries,
-            'query': query,
-            'matched_queries': result,
-            'method_used': "KMP",
+            'keywords' : queries,
+            'matched_queries': results,
+            'total_matched': result_sum
         }
     
     def _BM_match_1_query(self, text:str, query: str) -> List:
@@ -387,18 +417,17 @@ class Matcher:
 
         return count
 
-    def _BM_match(self, text:str, query: List[str]) -> Dict:
-        result = []
-        for i in query:
-            result.append(self._BM_match_1_query(text, i))
-
-        total_queries = len(self.queries)
+    def _BM_match(self, text:str, queries: List[str]) -> Dict:
+        results = []
+        result_sum = 0
+        for i in queries:
+            results.append(self._BM_match_1_query(text, i))
+            result_sum += results[-1]
 
         return {
-            'total_queries': total_queries,
-            'query': query,
-            'matched_queries': result,
-            'method_used': "BM",
+            'keywords' : queries,
+            'matched_queries': results,
+            'total_matched': result_sum,
         }
 
     def _calculate_similarity(self, str1: str, str2: str) -> float:
@@ -456,17 +485,16 @@ class Matcher:
         return count
     
     def _fuzzy_match(self, text:str, query: List[str], threshold: float = 0.8) -> Dict:
-        result = []
+        results = []
+        result_sum = 0
         for i in query:
-            result.append(self._fuzzy_match_1_query(text, i, threshold))
-
-        total_queries = len(self.queries)
-
+            results.append(self._fuzzy_match_1_query(text, i, threshold))
+            result_sum += results[-1]
+            
         return {
-            'total_queries': total_queries,
-            'query': query,
-            'matched_queries': result,
-            'method_used': "fuzzy",
+            'keywords' : query,
+            'matched_queries': results,
+            'total_matched': result_sum,
         }
 
 if __name__ == "__main__":

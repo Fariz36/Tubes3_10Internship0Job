@@ -240,7 +240,7 @@ class ATSController:
     def get_all_applications(self, page: int = 1, page_size: int = 50) -> Dict:
         try:
             offset = (page - 1) * page_size
-            applications = self.application_repo.get_all_applications(limit=page_size, offset=offset)
+            applications = self.application_repo.get_all_applications()
             total_count = self.application_repo.get_applications_count()
 
             return {

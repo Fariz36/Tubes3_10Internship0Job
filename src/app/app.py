@@ -101,9 +101,12 @@ class CVApp:
         try:
             top_n = int(self.top_matches_input.value)
         except (ValueError, TypeError):
-            top_n = 1
+            top_n = 5
 
         selected_algorithm = "BM" if self.algorithm_toggle.value else "KMP"
+
+        # debugging
+        top_n = 5
 
         top_candidates = self.data_service.search_candidates(
             keywords=keywords,
