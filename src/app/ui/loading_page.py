@@ -3,10 +3,10 @@ from itertools import cycle
 
 def create_loading_view():
     loading_texts_iterator = cycle([
-        "Muhammad Fariz Rifqi...",
-        "Searching GOAT candidate...",
-        "Muhammad Adha Ridwan...",
-        "Muhammad Edo Raduputu Aprima..."
+        "Loading data...",
+        "Analyzing database...",
+        "Searching for candidates...",
+        "Filtering candidates..."
     ])
 
     status_text = ft.Text(

@@ -273,7 +273,7 @@ class Matcher:
             
             text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
             result = text.lower() if case == 0 else text
-            print(f"Finished extracting text ({'lowercase' if case == 0 else 'original case'})")
+            print(f"Finished extracting text from {path}")
             return result
             
         except Exception as e:
@@ -309,20 +309,6 @@ class Matcher:
         self.automaton_trie = AhoCorasick(self.queries)
         self.exact_match_calculation_time = 0
         self.fuzzy_match_calculation_time = 0
-        
-    def _get_important_information(self, text: str) -> Dict[str, Union[str, List[str]]]:
-        """Extract important information from the text"""
-        # TODO using REGEX
-        return {
-            "name": "",
-            "birth_date": "",
-            "address": "",
-            "email": "",
-            "phone": "",
-            "skills": [],
-            "education": [],
-            "experience": []
-        }
 
     def _extract_from_pdf(self, path: str) -> str:
         text = ""
@@ -403,7 +389,6 @@ class Matcher:
                 j, i, count = future.result()
                 result[j]['result']['matched_queries'][i] = count
                 result[j]['result']['total_matched'] += count
-                print(f"Fuzzy match for query '{self.queries[i]}' in document {self.sources_id[j]}: {count} occurrences")
 
         self.fuzzy_match_calculation_time = time.time() - time_start
 
@@ -521,6 +506,43 @@ class Matcher:
             'matched_queries': results,
             'total_matched': result_sum,
         }
+    
+    def get_skills(self, cv_path: str) -> List[str]:
+        """ Extract skills from CV """
+        # TODO
+
+        # format : [skill1, skill2, ...]
+        print("test")
+        return []
+    
+    def get_summaries(self, cv_path: str) -> List[str]:
+        """ Extract summary information from CV """
+        cv_text = self.read_pdf(cv_path)
+        if not cv_text:
+            return []
+        
+        summary_text = self.extract_section(cv_text, self.summary_patterns)
+        
+        if summary_text:
+            return [summary_text]
+        else:
+            return []
+    
+    def get_job_histories(self, cv_path: str) -> List[str]:
+        """ Extract experience information from CV """
+        # TODO
+
+        # format : [{position, company, period}]
+        print("test")
+        return []
+    
+    def get_educations(self, cv_path: str) -> List[str]:
+        """ Extract education information from CV """
+        # TODO
+        # format : [{degree, institution, period}]
+        print("test")
+        return []
+
 
 if __name__ == "__main__":
     matcher = Matcher(["10554236.pdf"], ["financial", "other"])
