@@ -92,14 +92,28 @@ Fitur interaktif meliputi:
 ### 1. Clone Repository
 ```bash
 git clone https://github.com/Fariz36/Tubes3_10Internship0Job.git
+```
+### 2. Masuk ke dalam directory
+```bash
 cd Tubes3_10Internship0Job/src
+```
+### 3. Install dependencies yang dibutuhkan
+```bash
 uv sync
+```
+
+### 4. Jalankan database
+```bash
 (LINUX)
 cd ../database
 docker compose up -d
 (WINDOWS)
 cd ../database
 sudo docker-compose up -d
+```
+
+### 5. Jalankan kode
+```bash
 cd ../src
 uv run ./app/main.py
 ```
