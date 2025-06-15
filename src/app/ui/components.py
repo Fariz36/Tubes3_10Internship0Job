@@ -19,7 +19,17 @@ def create_candidate_card(candidate_data, on_summary_click_callback, on_view_cv_
 
     card_content = ft.Column([
         ft.Row([
-            ft.Text(candidate_data["first_name"] + " " + candidate_data["last_name"], weight=ft.FontWeight.BOLD, color="black", size=18),
+            ft.Container(
+                content=ft.Text(
+                    candidate_data["first_name"] + " " + candidate_data["last_name"], 
+                    weight=ft.FontWeight.BOLD, 
+                    color="black", 
+                    size=18,
+                    overflow=ft.TextOverflow.ELLIPSIS, 
+                    no_wrap=True 
+                ),
+                expand=True 
+            ),
             ft.Container(
                 content=ft.Text(f"{data['total_matched']} Matched", color="#1e1e2f", size=10, weight=ft.FontWeight.BOLD),
                 bgcolor="#B7E5B4", padding=ft.padding.symmetric(horizontal=8, vertical=4), border_radius=5
